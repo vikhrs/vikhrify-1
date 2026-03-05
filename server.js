@@ -124,6 +124,11 @@ app.post('/api/login', (req, res) => {
 // Добавь сюда свои остальные роуты (posts, follow, chats и т.д.)
 // Пока оставил только базовые, чтобы сервер запустился
 
+app.post('/api/admin/posts/clear', checkAdmin, async (req, res) => {
+  posts = [];
+  await saveData();
+  res.json({ success: true, message: 'Все посты удалены' });
+});
 app.listen(PORT, () => {
   console.log(Сервер запущен на порту ${PORT});
 });
