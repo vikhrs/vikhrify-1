@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vikhrify</title>
+  <style>
+    :root { --bg: #0d1117; --card: #161b22; --border: #30363d; --text: #e6edf3; --accent: #58a6ff; }
+    body { margin:0; font-family: sans-serif; background: var(--bg); color: var(--text); }
+    .hidden { display:none !important; }
+    #auth { position:fixed; inset:0; z-index:10000; display:flex; align-items:center; justify-content:center; background: url('bg-v.jpg') center/cover; }
+    #auth::before { content:""; position:absolute; inset:0; background:rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index:-1; }
+    .auth-card { background: var(--card); padding:25px; border-radius:15px; width:90%; max-width:350px; border:1px solid var(--border); }
+    header { position:fixed; top:0; left:0; right:0; height:60px; background: var(--card); border-bottom:1px solid var(--border); display:flex; align-items:center; padding:0 20px; z-index:1000; }
+    #sidebar { position:fixed; top:0; left:-280px; width:280px; height:100%; background: var(--card); border-right:1px solid var(--border); transition: 0.3s; z-index:2000; }
+    #sidebar.open { left:0; }
+    .nav-item { padding:15px 25px; cursor:pointer; border-bottom:1px solid #222; }
+    .container { margin: 60px auto; max-width:600px; padding:10px; }
+    .section { display:none; } .section.active { display:block; }
+    .tabs { display:flex; background: var(--bg); position:sticky; top:60px; z-index:900; border-bottom:1px solid var(--border); }
+    .tab { flex:1; text-align:center; padding:15px; cursor:pointer; color:#8b949e; }
+    .tab.active { color:var(--accent); border-bottom:2px solid var(--accent); }
+    .post { background: var(--card); padding:15px; border-radius:12px; border:1px solid var(--border); margin-bottom:15px; cursor:pointer; }
+    .avatar { width:45px; height:45px; border-radius:50%; object-fit:cover; }
+    .verified-blue::after { content:" ✔"; color:#1d9bf0; }
+    .verified-yellow::after { content:" ✔"; color:#fbbc05; }
+    .verified-red::after { content:" ✔"; color:#ff4444; }
+    input, button, textarea { width:100%; padding:12px; margin:8px 0; border-radius:8px; border:1px solid var(--border); background: var(--bg); color: #fff; box-sizing: border-box; }
+    button { background: #238636; border:none; cursor:pointer; font-weight:bold; }
+    #msg-list { height:400px; overflow-y:auto; display:flex; flex-direction:column; gap:5px; border:1px solid var(--border); padding:10px; background:#0a0c10; }
+    .msg { padding:8px 12px; border-radius:10px; max-width:80%; }
+    .msg.me { align-self:flex-end; background:#238636; }
+    .msg.other { align-self:flex-start; background:#30363d; }
+  </style>
+</head>
+<body>
+
+<div id="auth">
+  <div class="auth-card">
+    <h2 style="text-align:center">Добро пожаловать в Vikhrify !</h2>
+    <p style="text-align:center; color:#8b949e; font-size:0.9rem">Твой VXR — Твои правила</p>
+    <div id="reg-box" class="hidden"><input id="reg-name" placeholder="Имя"></div>
+    <input id="auth-u" placeholder="Юзернейм">
+    <input id="auth-p" type="password" placeholder="Пароль">
+    <button onclick="handleAuth()" id="btn-main" style="background:#da3633">Войти</button>
+    <button style="background:none; color:var(--accent)" onclick="toggleAuth()">Регистрация</button>
+  </div>
+</div>
+
+<header><div class="burger" onclick="toggleMenu()" style="cursor:pointer; font-size:24px">☰</div><b style="margin-left:15px">Vikhrify</b></header>
+
+<div id="sidebar">
+  <div class="nav-item" onclick="toggleMenu()" style="text-align:right">✕</div>
+  <div class="nav-item" onclick="show('feed')">🏠 Лента</div>
+  <div class="nav-item" onclick="show('search-tab')">🔍 Поиск</div>
+  <div class="nav-item" onclick="show('chats')">💬 Чаты</div>
+  <div class="nav-item" onclick="show('profile')">👤 Профиль</div>
+  <div class="nav-item" onclick="show('buy')">🛒 Магазин</div>
+</div>
+
+<div class="container">
+  <div id="feed" class="section active">
+    <div class="tabs"><div class="tab active" id="t-all" onclick="setFeedMode('all')">Для вас</div><div class="tab" id="t-fol" onclick="setFeedMode('following')">Читаю</div></div>
+    <div id="posts-list" style="margin-top:15px"></div>
+  </div>
+
+  <div id="profile" class="section">
+    <div style="text-align:center">
+      <img id="p-avatar" class="avatar" style="width:100px; height:100px">
+      <h2 id="p-name"></h2><p id="p-user"></p>
+      <div id="profile-actions"></div>
+      <p>Подписчиков: <b id="p-subs">0</b> | VXR: <b id="p-bal">0</b></p>
+      <span id="ref-link" style="color:var(--accent); cursor:pointer" onclick="copyRef()"></span>
+    </div>
+  </div>
+
+  <div id="chats" class="section">
+    <div id="chat-list-view"><div id="my-chats-list"></div></div>
+    <div id="chat-window" class="hidden">
+      <button onclick="closeChat()">← Назад</button>
+      <h3 id="chat-title"></h3>
+      <div id="msg-list"></div>
+      <div style="display:flex; gap:5px"><input id="msg-in" placeholder="Текст..."><button onclick="sendMsg()">></button></div>
+    </div>
+  </div>
+
+  <div id="search-tab" class="section">
+    <input placeholder="Найти человека..." oninput="searchUsers(this.value)">
+    <div id="search-results"></div>
+  </div>
+
+  <div id="buy" class="section">
+    <h2>Магазин VXR</h2>
+    <button onclick="window.open('https://vxr.tilda.ws/')">Купить VXR (1 VXR = 1₽)</button>
+    <button onclick="window.open('https://vxr.tilda.ws/')" style="background:#1d9bf0; margin-top:10px">Премиум (299 VXR)</button>
+  </div>
+</div>
+
+<script>
+let user = JSON.parse(localStorage.getItem('user'));
+let isLogin = true; let feedMode = 'all'; let lastPostId = 0; let curPartner = null; let lastMsgId = 0;
+
+// Запрос уведомлений
+if (Notification.permission !== "granted") Notification.requestPermission();
+
+function toggleAuth() { isLogin = !isLogin; document.getElementById('reg-box').classList.toggle('hidden', isLogin); }
+function toggleMenu() { document.getElementById('sidebar').classList.toggle('open'); }
+
+async function handleAuth() {
+  const r = await fetch(isLogin ? '/api/login' : '/api/register', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name:document.getElementById('reg-name').value, username:document.getElementById('auth-u').value, password:document.getElementById('auth-p').value})
+  });
+  const d = await r.json();
+  if(d.success) { localStorage.setItem('user', JSON.stringify(d.user)); location.reload(); } else alert(d.error);
+}
+
+function show(id, target = null) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(id==='profile') loadProfile(target || user.username);
+  if(document.getElementById('sidebar').classList.contains('open')) toggleMenu();
+}
+
+async function loadPosts() {
+  const r = await fetch(`/api/posts?mode=${feedMode}&me=${user?.username}`);
+  const data = await r.json();
+  if(data.length) lastPostId = Math.max(...data.map(p => p.id));
+  document.getElementById('posts-list').innerHTML = data.map(p => `
+    <div class="post" onclick="show('profile', '${p.username}')">
+      <div style="display:flex; gap:10px">
+        <img src="${p.avatar}" class="avatar">
+        <div><b class="verified-${p.isVerified}">${p.name}</b><br><small>@${p.username}</small></div>
+      </div>
+      <p>${p.content}</p>
+      ${p.image ? `<img src="${p.image}" style="width:100%; border-radius:10px">` : ''}
+    </div>`).join('');
+}
+
+// АВТООБНОВЛЕНИЕ ЛЕНТЫ
+async function checkNewPosts() {
+  if(!document.getElementById('feed').classList.contains('active')) return;
+  const r = await fetch(`/api/posts/new?after=${lastPostId}`);
+  const news = await r.json();
+  if(news.length > 0) loadPosts(); // Перерисовываем если есть новые
+}
+
+async function loadProfile(un) {
+  const r = await fetch('/api/user/'+un); const d = await r.json();
+  const isMe = user.username === d.username;
+  document.getElementById('p-avatar').src = d.avatar;
+  document.getElementById('p-name').innerText = d.name;
+  document.getElementById('p-name').className = 'verified-'+d.isVerified;
+  document.getElementById('p-user').innerText = '@'+d.username;
+  document.getElementById('p-subs').innerText = d.followers || 0;
+  document.getElementById('p-bal').innerText = d.balance || 0;
+  document.getElementById('ref-link').innerText = window.location.origin + '?ref=' + d.username;
+  document.getElementById('profile-actions').innerHTML = isMe ? `<button onclick="editProf()">Изменить</button><button onclick="localStorage.clear();location.reload()">Выход</button>` : `<button onclick="toggleFollow('${d.username}')">Подписаться/Отписаться</button><button onclick="openChat('${d.username}')">Чат</button>`;
+}
+
+async function editProf() {
+  const n = prompt("Имя:", user.name);
+  const input = document.createElement('input'); input.type='file';
+  input.onchange = async (e) => {
+    const rd = new FileReader(); rd.readAsDataURL(e.target.files[0]);
+    rd.onload = async () => {
+      await fetch('/api/profile/update', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:user.id, name:n, avatar:rd.result})});
+      location.reload();
+    };
+  }; input.click();
+}
+
+// АВТООБНОВЛЕНИЕ ЧАТА
+async function loadMessages() {
+  if(!curPartner) return;
+  const r = await fetch(`/api/messages?me=${user.username}&other=${curPartner}`);
+  const data = await r.json();
+  const list = document.getElementById('msg-list');
+  const oldLen = list.children.length;
+  list.innerHTML = data.map(m => `<div class="msg ${m.from===user.username?'me':'other'}">${m.text}</div>`).join('');
+  if(data.length > oldLen) {
+      list.scrollTop = list.scrollHeight;
+      if(data[data.length-1].from !== user.username) {
+          new Notification("Новое сообщение", { body: data[data.length-1].text });
+      }
+  }
+}
+
+async function openChat(un) { curPartner = un; show('chats'); document.getElementById('chat-list-view').classList.add('hidden'); document.getElementById('chat-window').classList.remove('hidden'); document.getElementById('chat-title').innerText = '@'+un; loadMessages(); }
+function closeChat() { curPartner = null; document.getElementById('chat-window').classList.add('hidden'); document.getElementById('chat-list-view').classList.remove('hidden'); }
+async function sendMsg() { 
+    const t = document.getElementById('msg-in').value; if(!t) return;
+    await fetch('/api/messages', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({from:user.username, to:curPartner, text:t})});
+    document.getElementById('msg-in').value=''; loadMessages(); 
+}
+
+if(user) { document.getElementById('auth').classList.add('hidden'); loadPosts(); }
+setInterval(checkNewPosts, 5000);
+setInterval(loadMessages, 3000);
+</script>
+</body>
+</html>
