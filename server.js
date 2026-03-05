@@ -4,9 +4,6 @@ import { dirname, join } from 'path';
 import cors from 'cors';
 import fs from 'fs/promises';
 
-const __filename = fileURLToPath(import.meta.url);
-const dirname = dirname(filename);
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
