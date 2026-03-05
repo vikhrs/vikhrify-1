@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Vikhrify Admin</title>
+    <style>
+        body { background: #000; color: #fff; font-family: sans-serif; padding: 20px; }
+        .row { border: 1px solid #444; padding: 15px; margin: 10px 0; border-radius: 8px; }
+        input { background: #222; color: #fff; border: 1px solid #666; padding: 5px; width: 80px; }
+    </style>
+</head>
+<body>
+    <h1>Панель админа</h1>
+    <div id="login-form">
+        <input type="password" id="pass" placeholder="Пароль">
+        <button onclick="login()">Войти</button>
+    </div>
+    <div id="users-list"></div>
+
+    <script>
+        let p = "";
+
+        async function login() {
+            p = document.getElementById('pass').value;
+            const response = await fetch('/api/admin/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: p })
+            });
+            const data = await response.json();
+            if(data.success) {
+                document.getElementById('login-form').style.display = 'none';
+                render(data.users);
+            } else {
+                alert('Неверный пароль');
+            }
+        }
+
+        function render(users) {
+            document.getElementById('users-list').innerHTML = users.map(u => `
+                <div class="row">
+                    <b>${u.name}</b> (@${u.username})<br>
+                    Баланс: <input id="b-${u.id}" value="${u.balance}">
+                    Уровень: <input id="l-${u.id}" value="${u.level}">
+                    <button onclick="save(${u.id})">Сохранить</button>
+                </div>
+            `).join('');
+        }
+
+        async function save(id) {
+            const body = {
+                password: p,
+                userId: id,
+                balance: document.getElementById('b-'+id).value,
+                level: document.getElementById('l-'+id).value,
+                isVerified: false
+            };
+            const response = await fetch('/api/admin/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if(response.ok) alert('Обновлено');
+            else alert('Ошибка!');
+        }
+    </script>
+</body>
+</html>
