@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: sans-serif; background: #000; color: #fff; margin:0; padding-bottom: 70px; }
+        button { width: 100%; padding: 20px; margin: 5px 0; font-size: 18px; border-radius: 15px; border:none; background:#007bff; color:#fff; }
+        input { width: 100%; padding: 20px; box-sizing: border-box; font-size: 18px; border-radius: 15px; border:1px solid #333; background:#111; color:#fff; }
+        .nav { position:fixed; bottom:0; display:flex; width:100%; }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <h1>Добро пожаловать в Vikhrify!</h1>
+        <input id="u" placeholder="Юзернейм">
+        <input id="p" type="password" placeholder="Пароль">
+        <button onclick="auth('login')">Войти</button>
+        <button onclick="auth('reg')" style="background:#333">Регистрация</button>
+    </div>
+<script>
+    async function auth(t) {
+        const r = await fetch('/api/auth', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({username:document.getElementById('u').value, password:document.getElementById('p').value, type:t})
+        });
+        if(r.ok) alert('Успешно!'); else alert('Ошибка или бан');
+    }
+</script>
+</body>
+</html>
