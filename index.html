@@ -24,8 +24,8 @@
     .name-row { display:flex; align-items:center; gap:6px; }
     .verified-blue::after  { content:"✔"; color:#1d9bf0; font-size:1.1em; margin-left:4px; }
     .verified-yellow::after { content:"✔"; color:#fbbc05; font-size:1.1em; margin-left:4px; }
-    .verified-red::after   { content:"✔"; color:#ff0000;   font-size:1.1em; margin-left:4px; }
     .post img { max-width:100%; border-radius:10px; margin-top:10px; display:block; }
+    #slider-price { width:100%; margin:20px 0; }
   </style>
 </head>
 <body>
@@ -53,38 +53,28 @@
   </div>
 
   <div id="buy" class="section">
-    <h2>Купить VXR / Премиум</h2>
-    <h3>Пополнение VXR (1 ₽ = 1 VXR)</h3>
+    <h2>Купить WXR / Премиум</h2>
+    
+    <h3>Пополнение WXR (1 ₽ = 1 WXR)</h3>
     <input type="range" id="slider-price" min="100" max="10000" value="500" step="100">
-    <p>Сумма: <b id="price-val">500</b> ₽ → <b id="vxr-val">500</b> VXR</p>
-    <button class="btn-primary" onclick="buyVXR()">Оплатить через Platega</button>
+    <p>Сумма: <b id="price-val">500</b> ₽ → <b id="wxr-val">500</b> WXR</p>
+    <button class="btn-primary" onclick="buyWXR()">Оплатить</button>
 
-    <h3 style="margin-top:32px;">Премиум (60 дней)</h3>
+    <h3 style="margin-top:32px;">Премиум-галочка (60 дней)</h3>
     <button class="btn-primary" onclick="buyPremium('blue')" style="background:#1d9bf0; margin:8px 0;">Синяя галочка — 299 ₽</button>
     <button class="btn-primary" onclick="buyPremium('yellow')" style="background:#fbbc05; color:#000; margin:8px 0;">Жёлтая галочка — 499 ₽</button>
   </div>
   <div id="profile" class="section">
     <h2>Профиль</h2>
     <img id="my-avatar" class="avatar" src="https://via.placeholder.com/96" style="width:96px;height:96px;">
-    <p>Имя: <span id="my-name"></span> <button onclick="editName()">Изменить</button></p>
+    <p>Имя: <span id="my-name"></span> <button onclick="editName()">Изменить имя</button></p>
     <p>Юзернейм: @<span id="my-username"></span></p>
     <p>Галочка: <span id="my-verified"></span></p>
     <p>Премиум: <span id="my-premium"></span></p>
-    <p>Баланс: <b id="my-balance">0</b> VXR</p>
+    <p>Баланс: <b id="my-balance">0</b> WXR</p>
     <p>Подписчики: <b id="my-followers">0</b></p>
     <h3>Мои посты</h3>
     <div id="my-posts"></div>
-  </div>
-
-  <div id="user-profile" class="section">
-    <h2 id="user-name"></h2>
-    <img id="user-avatar" class="avatar" src="" style="width:96px;height:96px;">
-    <p>Юзернейм: @<span id="user-username"></span></p>
-    <p>Галочка: <span id="user-verified"></span></p>
-    <p>Подписчики: <b id="user-followers">0</b></p>
-    <button id="follow-btn" class="btn-primary" onclick="toggleFollow()">Подписаться</button>
-    <h3>Посты</h3>
-    <div id="user-posts"></div>
   </div>
 
   <nav>
@@ -96,26 +86,15 @@
 
 <script>
 let user = null;
-let currentUserProfileId = null;
-
-const saved = localStorage.getItem('user');
-if (saved) {
-  user = JSON.parse(saved);
-  document.getElementById('auth').classList.add('hidden');
-  document.getElementById('app').style.display = 'block';
-  initApp();
-}
+const msgEl = document.getElementById('auth-msg');
 
 async function register() {
+  msgEl.innerHTML = '';
   const name = document.getElementById('name').value.trim();
   const username = document.getElementById('username').value.trim();
   const password = document.getElementById('password').value.trim();
-  const msg = document.getElementById('auth-msg');
 
-  if (!name  !username  !password) {
-    msg.innerHTML = '<span style="color:#f33">Заполните все поля</span>';
-    return;
-  }
+  if (!name  !username  !password) return msgEl.innerHTML = '<span style="color:#f33">Заполните все поля</span>';
 
   try {
     const r = await fetch('/api/register', {
@@ -124,17 +103,22 @@ async function register() {
       body: JSON.stringify({name, username, password})
     });
     const d = await r.json();
-    if (d.success) msg.innerHTML = '<span style="color:#0f0">Готово! Войдите.</span>';
-    else msg.innerHTML = '<span style="color:#f33">' + (d.error || 'Ошибка') + '</span>';
-  } catch {
-    msg.innerHTML = '<span style="color:#f33">Ошибка сети</span>';
+    if (d.success) {
+      msgEl.innerHTML = '<span style="color:#0f0">Зарегистрирован! Войдите.</span>';
+    } else {
+      msgEl.innerHTML = '<span style="color:#f33">' + (d.error || 'Ошибка') + '</span>';
+    }
+  } catch(e) {
+    msgEl.innerHTML = '<span style="color:#f33">Ошибка сети</span>';
   }
 }
 
 async function login() {
+  msgEl.innerHTML = '';
   const username = document.getElementById('username').value.trim();
   const password = document.getElementById('password').value.trim();
-  const msg = document.getElementById('auth-msg');
+
+  if (!username || !password) return msgEl.innerHTML = '<span style="color:#f33">Заполните юзернейм и пароль</span>';
 
   try {
     const r = await fetch('/api/login', {
@@ -150,36 +134,53 @@ async function login() {
       document.getElementById('app').style.display = 'block';
       initApp();
     } else {
-      msg.innerHTML = '<span style="color:#f33">' + (d.error || 'Неверно') + '</span>';
+      msgEl.innerHTML = '<span style="color:#f33">' + (d.error || 'Неверно') + '</span>';
     }
-  } catch {
-    msg.innerHTML = '<span style="color:#f33">Ошибка сети</span>';
+  } catch(e) {
+    msgEl.innerHTML = '<span style="color:#f33">Ошибка сети</span>';
   }
+}
+
+const saved = localStorage.getItem('user');
+if (saved) {
+  user = JSON.parse(saved);
+  document.getElementById('auth').classList.add('hidden');
+  document.getElementById('app').style.display = 'block';
+  initApp();
 }
 
 function initApp() {
   loadProfile();
   loadPosts();
+  show('feed');
+
+  // обработка после оплаты
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('payment') === 'success') {
+    alert('Оплата прошла! Баланс / премиум обновлены.');
+    loadProfile();
+  } else if (urlParams.get('payment') === 'fail') {
+    alert('Оплата не прошла.');
+  }
 }
 
 function show(id) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-  document.querySelector(nav button[onclick="show('${id}')"]).classList.add('active');
+  event.target.classList.add('active');
   if (id === 'feed') loadPosts();
   if (id === 'profile') loadProfile();
 }
 
+// Лента
 async function loadPosts() {
   const r = await fetch('/api/posts');
-  const posts = await r.json();
-  document.getElementById('posts-list').innerHTML = posts.map(p => {
+  const all = await r.json();
+  document.getElementById('posts-list').innerHTML = all.map(p => {
     let vclass = '';
     if (p.isVerified === 'blue') vclass = 'verified-blue';
     if (p.isVerified === 'yellow') vclass = 'verified-yellow';
-    if (p.isVerified === 'red') vclass = 'verified-red';
-
     return 
       <div class="post">
         <div class="post-header" onclick="openUserProfile(${p.userId})">
@@ -198,6 +199,7 @@ async function loadPosts() {
 }
 
 async function publishPost() {
+  if (!user) return alert('Войдите сначала');
   const content = document.getElementById('post-text').value.trim();
   const file = document.getElementById('post-photo').files[0];
 
@@ -227,6 +229,7 @@ async function sendPost(content, image) {
   loadPosts();
 }
 
+// Профиль свой
 async function loadProfile() {
   const r = await fetch(/api/me/${user.id});
   user = await r.json();
@@ -241,7 +244,6 @@ async function loadProfile() {
   let ver = 'нет';
   if (user.isVerified === 'blue') ver = '<span style="color:#1d9bf0">синяя ✔</span>';
   if (user.isVerified === 'yellow') ver = '<span style="color:#fbbc05">жёлтая ✔</span>';
-  if (user.isVerified === 'red') ver = '<span style="color:#ff0000">красная ✔</span>';
   document.getElementById('my-verified').innerHTML = ver;
 
   document.getElementById('my-premium').textContent = user.premiumUntil 
@@ -249,8 +251,8 @@ async function loadProfile() {
     : 'нет';
 
   const pr = await fetch('/api/posts');
-  const myPosts = (await pr.json()).filter(p => p.userId === user.id);
-  document.getElementById('my-posts').innerHTML = myPosts.map(p => 
+  const my = (await pr.json()).filter(p => p.userId === user.id);
+  document.getElementById('my-posts').innerHTML = my.map(p => 
     <div class="post">
       <p>${p.content}</p>
       \( {p.image ? <img src=" \){p.image}"> : ''}
@@ -270,6 +272,7 @@ function editName() {
   }
 }
 
+// Чужой профиль
 async function openUserProfile(id) {
   if (id === user.id) return show('profile');
 
@@ -279,41 +282,42 @@ async function openUserProfile(id) {
 
   const isFollowing = (target.followers || []).includes(user.id);
 
-  document.getElementById('user-name').textContent = target.name;
-  document.getElementById('user-username').textContent = target.username;
-  document.getElementById('user-avatar').src = target.avatar;
-  document.getElementById('user-followers').textContent = target.followersCount;
-  let ver = 'нет';
-  if (target.isVerified === 'blue') ver = '<span style="color:#1d9bf0">синяя ✔</span>';
-  if (target.isVerified === 'yellow') ver = '<span style="color:#fbbc05">жёлтая ✔</span>';
-  if (target.isVerified === 'red') ver = '<span style="color:#ff0000">красная ✔</span>';
-  document.getElementById('user-verified').innerHTML = ver;
+  const html = 
+    <h2>\( {target.name} @ \){target.username}</h2>
+    <img src="${target.avatar}" class="avatar" style="width:96px;height:96px;">
+    <p>Подписчики: <b>${target.followersCount}</b></p>
+    <button onclick="toggleFollow(${target.id}, ${!isFollowing})">
+      ${isFollowing ? 'Отписаться' : 'Подписаться'}
+    </button>
+    <h3>Посты</h3>
+    <div id="temp-posts"></div>
+  ;
 
-  document.getElementById('follow-btn').textContent = isFollowing ? 'Отписаться' : 'Подписаться';
-  document.getElementById('follow-btn').onclick = () => toggleFollow(id, !isFollowing);
+  const sec = document.getElementById('profile');
+  sec.innerHTML = html + sec.innerHTML.slice(sec.innerHTML.indexOf('<nav'));
 
   const pr = await fetch('/api/posts');
   const posts = (await pr.json()).filter(p => p.userId === id);
-  document.getElementById('user-posts').innerHTML = posts.map(p => 
+  document.getElementById('temp-posts').innerHTML = posts.map(p => 
     <div class="post">
       <p>${p.content}</p>
       \( {p.image ? <img src=" \){p.image}"> : ''}
     </div>
   ).join('');
-
-  show('user-profile');
+  show('profile');
 }
 
-async function toggleFollow(targetId, doFollow) {
+async function toggleFollow(targetId, shouldFollow) {
   await fetch('/api/follow', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({userId: user.id, targetId})
   });
-  openUserProfile(targetId); // обновим
+  alert(shouldFollow ? 'Подписались' : 'Отписались');
+  openUserProfile(targetId);
 }
 
-// Покупки
+// Покупки (заглушка — подключи Platega в server.js, если нужно)
 document.getElementById('slider-price').oninput = function() {
   const v = this.value;
   document.getElementById('price-val').textContent = v;
@@ -322,20 +326,15 @@ document.getElementById('slider-price').oninput = function() {
 
 async function buyWXR() {
   const amount = document.getElementById('slider-price').value;
-  try {
-    const r = await fetch('/api/buy-vxr', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({userId: user.id, amountRub: amount})
-    });
-    const d = await r.json();
-    if (d.success) window.location.href = d.paymentUrl;
-    else alert(d.error || 'Ошибка');
-  } catch {
-    alert('Ошибка сети');
-  }
+  alert(Переход на оплату ${amount} ₽ → ${amount} WXR (подключи Platega));
+  // здесь будет fetch('/api/buy-wxr', ...)
 }
 
 async function buyPremium(type) {
   const price = type === 'blue' ? 299 : 499;
-  if (!confirm(`Купить ${type === 'blue' ? 'синюю' : 'жёлтую'} галочку за ${price}
+  alert(Переход на оплату премиума ${type} за ${price} ₽ (подключи Platega));
+  // здесь будет fetch('/api/buy-premium', ...)
+}
+</script>
+</body>
+</html>
