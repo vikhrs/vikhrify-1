@@ -1,0 +1,15 @@
+{
+  "name": "Vikhrify Messenger  ",
+  "short_name": "Vikhrify",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d1117",
+  "theme_color": "#58a6ff",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/5968/5968756.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
