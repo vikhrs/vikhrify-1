@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vikhrify</title>
+  <style>
+    body { margin:0; font-family:Arial,sans-serif; background:#0d1117; color:#e6edf3; }
+    #auth { position:fixed; inset:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; z-index:9999; transition:opacity 0.4s; }
+    #auth.hidden { opacity:0; pointer-events:none; }
+    .auth-card { background:#161b22; padding:32px; border-radius:12px; width:90%; max-width:420px; box-shadow:0 10px 30px rgba(0,0,0,0.6); border:1px solid #30363d; }
+    input, button, textarea { width:100%; padding:12px 16px; margin:10px 0; border-radius:6px; border:1px solid #30363d; background:#0d1117; color:#e6edf3; font-size:1rem; }
+    button { cursor:pointer; border:none; }
+    .btn-primary { background:#238636; color:white; }
+    .btn-primary:hover { background:#2ea043; }
+    .btn-danger { background:#da3633; color:white; margin-top: 20px; }
+    nav { position:fixed; bottom:0; left:0; right:0; background:#161b22; border-top:1px solid #30363d; display:flex; z-index:100; }
+    nav button { flex:1; padding:14px; background:none; border:none; color:#8b949e; font-size:0.9rem; display:flex; flex-direction:column; align-items:center; gap:4px; }
+    nav button.active { color:#58a6ff; }
+    .section { display:none; padding:16px 16px 90px; }
+    .section.active { display:block; }
+    .post { background:#161b22; padding:16px; margin:16px 0; border-radius:12px; border:1px solid #30363d; }
+    .post-header { display:flex; align-items:center; gap:12px; margin-bottom:12px; cursor:pointer; }
+    .avatar { width:48px; height:48px; border-radius:50%; object-fit:cover; border:1px solid #30363d; }
+    .name-row { display:flex; align-items:center; gap:6px; }
+    .verified-blue::after { content:"✔"; color:#1d9bf0; font-size:1.1em; margin-left:4px; }
+    .verified-yellow::after { content:"✔"; color:#fbbc05; font-size:1.1em; margin-left:4px; }
+    .post img { max-width:100%; border-radius:10px; margin-top:10px; display:block; }
+    #slider-price { width:100%; margin:20px 0; }
+  </style>
+</head>
+<body>
+
+<div id="auth">
+  <div class="auth-card">
+    <h2 style="text-align:center; margin:0 0 24px;">Vikhrify</h2>
+    <input id="name" placeholder="Имя">
+    <input id="username" placeholder="Юзернейм">
+    <input id="password" type="password" placeholder="Пароль">
+    <button class="btn-primary" onclick="register()" style="margin-top:16px;">Зарегистрироваться</button>
+    <button class="btn-primary" onclick="login()" style="margin-top:8px;">Войти</button>
+    <div id="auth-msg" style="margin-top:16px; text-align:center; min-height:24px;"></div>
+  </div>
+</div>
+
+<div id="app" style="display:none;">
+  <div id="feed" class="section active">
+    <h2>Лента</h2>
+    <textarea id="post-text" placeholder="Что нового?" rows="3"></textarea>
+    <input type="file" id="post-photo" accept="image/*">
+    <button class="btn-primary" onclick="publishPost()" style="margin-top:12px;">Опубликовать</button>
+    <div id="posts-list"></div>
+  </div>
+
+  <div id="buy" class="section">
+    <h2>Купить VXR / Премиум</h2>
+    <h3>Пополнение VXR (1 ₽ = 1 VXR)</h3>
+    <input type="range" id="slider-price" min="100" max="10000" value="500" step="100">
+    <p>Сумма: <b id="price-val">500</b> ₽ → <b id="vxr-val">500</b> VXR</p>
+    <button class="btn-primary" onclick="buyVXR()">Оплатить</button>
+
+    <h3 style="margin-top:32px;">Премиум-галочка (60 дней)</h3>
+    <button class="btn-primary" onclick="buyPremium('blue')" style="background:#1d9bf0; margin:8px 0;">Синяя галочка — 299 ₽</button>
+    <button class="btn-primary" onclick="buyPremium('yellow')" style="background:#fbbc05; color:#000; margin:8px 0;">Жёлтая галочка — 499 ₽</button>
+  </div>
+
+  <div id="profile" class="section">
+    <h2>Профиль</h2>
+    <img id="my-avatar" class="avatar" src="https://via.placeholder.com/96" style="width:96px;height:96px;">
+    <p>Имя: <span id="my-name"></span> <button onclick="editName()">Изм.</button></p>
+    <p>Юзернейм: @<span id="my-username"></span></p>
+    <p>Галочка: <span id="my-verified"></span></p>
+    <p>Баланс: <b id="my-balance">0</b> VXR</p>
+    
+    <button class="btn-danger" onclick="logout()">Выйти из аккаунта</button>
+
+    <h3>Мои посты</h3>
+    <div id="my-posts"></div>
+  </div>
+
+  <nav>
+    <button id="nav-feed" class="active" onclick="show('feed')">Лента</button>
+    <button id="nav-buy" onclick="show('buy')">Купить</button>
+    <button id="nav-profile" onclick="show('profile')">Профиль</button>
+  </nav>
+</div>
+
+<script>
+let user = null;
+
+// --- АВТОРИЗАЦИЯ ---
+async function register() {
+  const msg = document.getElementById('auth-msg');
+  const name = document.getElementById('name').value.trim();
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value.trim();
+
+  if (!name || !username || !password) return msg.innerHTML = '<span style="color:#f33">Заполните поля</span>';
+
+  try {
+    const r = await fetch('/api/register', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({name, username, password})
+    });
+    const d = await r.json();
+    if (d.success) msg.innerHTML = '<span style="color:#0f0">Успех! Теперь войдите.</span>';
+    else msg.innerHTML = `<span style="color:#f33">${d.error}</span>`;
+  } catch(e) { msg.innerHTML = 'Ошибка сети'; }
+}
+
+async function login() {
+  const msg = document.getElementById('auth-msg');
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value.trim();
+
+  try {
+    const r = await fetch('/api/login', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({username, password})
+    });
+    const d = await r.json();
+    if (d.success) {
+      user = d.user;
+      localStorage.setItem('user', JSON.stringify(user));
+      location.reload(); // Перезагружаем для инициализации
+    } else {
+      msg.innerHTML = `<span style="color:#f33">${d.error}</span>`;
+    }
+  } catch(e) { msg.innerHTML = 'Ошибка сети'; }
+}
+
+function logout() {
+  localStorage.removeItem('user');
+  location.reload();
+}
+
+// --- НАВИГАЦИЯ ---
+function show(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('nav-' + id).classList.add('active');
+  if (id === 'feed') loadPosts();
+  if (id === 'profile') loadProfile();
+}
+
+// --- ЛЕНТА ---
+async function loadPosts() {
+  const r = await fetch('/api/posts');
+  const all = await r.json();
+  document.getElementById('posts-list').innerHTML = all.reverse().map(p => {
+    let vclass = p.isVerified === 'blue' ? 'verified-blue' : (p.isVerified === 'yellow' ? 'verified-yellow' : '');
+    return `
+      <div class="post">
+        <div class="post-header">
+          <img src="${p.avatar}" class="avatar">
+          <div class="name-row">
+            <b>${p.name}</b> <span class="${vclass}">@${p.username}</span>
+          </div>
+        </div>
+        <p>${p.content}</p>
+        ${p.image ? `<img src="${p.image}">` : ''}
+      </div>`;
+  }).join('');
+}
+
+async function publishPost() {
+  const content = document.getElementById('post-text').value.trim();
+  const file = document.getElementById('post-photo').files[0];
+  if (!content) return alert('Напишите текст');
+
+  let image = null;
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      image = reader.result;
+      await sendPost(content, image);
+    };
+    reader.readAsDataURL(file);
+  } else {
+    await sendPost(content, null);
+  }
+}
+
+async function sendPost(content, image) {
+  await fetch('/api/posts', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({userId: user.id, content, image})
+  });
+  document.getElementById('post-text').value = '';
+  document.getElementById('post-photo').value = '';
+  loadPosts();
+}
+
+// --- ПРОФИЛЬ ---
+async function loadProfile() {
+  const r = await fetch(`/api/me/${user.id}`);
+  user = await r.json();
+  document.getElementById('my-name').textContent = user.name;
+  document.getElementById('my-username').textContent = user.username;
+  document.getElementById('my-avatar').src = user.avatar;
+  document.getElementById('my-balance').textContent = user.balance;
+
+  let ver = 'нет';
+  if (user.isVerified === 'blue') ver = '<span style="color:#1d9bf0">синяя ✔</span>';
+  if (user.isVerified === 'yellow') ver = '<span style="color:#fbbc05">жёлтая ✔</span>';
+  document.getElementById('my-verified').innerHTML = ver;
+}
+
+// --- ОПЛАТА VXR ---
+document.getElementById('slider-price').oninput = function() {
+  document.getElementById('price-val').textContent = this.value;
+  document.getElementById('vxr-val').textContent = this.value;
+};
+
+async function buyVXR() {
+  const amount = document.getElementById('slider-price').value;
+  const r = await fetch('/api/create-payment', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ userId: user.id, amount, type: 'vxr' })
+  });
+  const d = await r.json();
+  if (d.url) window.location.href = d.url;
+}
+
+async function buyPremium(color) {
+  const amount = (color === 'blue') ? 299 : 499;
+  const r = await fetch('/api/create-payment', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ userId: user.id, amount, type: 'premium', color })
+  });
+  const d = await r.json();
+  if (d.url) window.location.href = d.url;
+}
+
+// --- СТАРТ ---
+const saved = localStorage.getItem('user');
+if (saved) {
+  user = JSON.parse(saved);
+  document.getElementById('auth').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  show('feed');
+}
+</script>
+</body>
+</html>
