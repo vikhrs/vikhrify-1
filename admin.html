@@ -3,18 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <title>Админ Вихрифай</title>
-  <style> /* тот же стиль что был */ body { font-family:Arial; background:#000; color:#eee; padding:20px; } table { width:100%; border-collapse:collapse; margin:20px 0; } th,td { border:1px solid #333; padding:8px; } th { background:#222; } button { padding:6px 12px; margin:2px; cursor:pointer; } </style>
+  <style>
+    body { font-family:Arial; background:#000; color:#eee; padding:20px; }
+    table { width:100%; border-collapse:collapse; margin:20px 0; }
+    th,td { border:1px solid #333; padding:8px; text-align:left; }
+    th { background:#222; }
+    button { padding:6px 12px; margin:2px; cursor:pointer; }
+    input { padding:4px; }
+    .danger-btn { background:#f33; color:white; font-weight:bold; }
+  </style>
 </head>
 <body>
   <h1>Админ-панель Вихрифай</h1>
   <p>Пользователей: <b id="uc">0</b> | Постов: <b id="pc">0</b></p>
-  <input id="search" placeholder="Поиск..." oninput="filter()" style="width:300px;margin-bottom:16px;padding:8px;">
 
+  <!-- Кнопка очистки ленты -->
+  <div style="margin: 20px 0; text-align:center;">
+    <button class="danger-btn" onclick="clearPosts()" style="padding:14px 28px; font-size:1.3rem;">
+      Очистить ленту (удалить ВСЕ посты)
+    </button>
+  </div>
+
+  <input id="search" placeholder="Поиск..." oninput="filter()" style="width:300px;padding:8px;margin-bottom:16px">
   <table>
-    <thead><tr>
-      <th>ID</th><th>@username</th><th>Имя</th><th>Баланс</th>
-      <th>Премиум</th><th>Подписчики</th><th>Статус</th><th>Действия</th>
-    </tr></thead>
+    <thead>
+      <tr><th>ID</th><th>@username</th><th>Имя</th><th>Баланс</th><th>Подписчики</th><th>Премиум</th><th>Статус</th><th>Действия</th></tr>
+    </thead>
     <tbody id="tbl"></tbody>
   </table>
 
@@ -36,42 +50,52 @@
         <td>${u.id}</td>
         <td>@${u.username}</td>
         <td>${u.name}</td>
-        <td>
-          <input type="number" value="\( {u.balance}" id="bal \){u.id}">
-          <button onclick="update(\( {u.id}, 'balance', document.getElementById('bal \){u.id}').value)">Сохранить</button>
-        </td>
-        <td>
-          ${u.premiumLevel===1?'Синяя':u.premiumLevel===2?'Жёлтая':u.premiumLevel===3?'Красная':'—'}
+        <td><input type="number" value="\( {u.balance}" id="bal \){u.id}"><button onclick="update(\( {u.id},'balance',document.getElementById('bal \){u.id}').value)">Сохранить</button></td>
+        <td>\( {u.followers?u.followers.length:0} <input id="boost \){u.id}" value="1000" style="width:60px"><button onclick="boost(\( {u.id},document.getElementById('boost \){u.id}').value)">Накрутить</button></td>
+        <td>${u.premiumLevel===1?'🔵':u.premiumLevel===2?'🟡':'—'} 
           <button onclick="setPremium(${u.id},1)">Синяя</button>
-          <button onclick="setPremium(${u.id},2)">Жёлтая</button>
-          <button onclick="setPremium(${u.id},3)">Красная</button>
-        </td>
-        <td>
-          ${u.followersCount||0}
-          <button onclick="addFakeFollowers(${u.id})">+100</button>
-        </td>
+          <button onclick="setPremium(${u.id},2)">Жёлтая</button></td>
         <td>\( {u.isBlocked?'Заблокирован':'Активен'} <button onclick="update( \){u.id},'isBlocked',\( {!u.isBlocked})"> \){u.isBlocked?'Разблокировать':'Заблокировать'}</button></td>
-        <td><button onclick="update(\( {u.id},'isVerified', \){!u.isVerified})">${u.isVerified?'Забрать verified':'Выдать'}</button></td>
+        <td><button onclick="update(\( {u.id},'isVerified', \){!u.isVerified})">${u.isVerified?'Забрать красную':'Выдать красную'}</button></td>
       ;
       tbody.appendChild(tr);
     });
   }
 
   async function update(id, field, val) {
-    await fetch('/api/admin/user', {method:'PATCH', headers:{...headers,'Content-Type':'application/json'}, body:JSON.stringify({id, [field]:val})});
+    await fetch('/api/admin/user', {method:'PATCH', headers:{...headers,'Content-Type':'application/json'}, body:JSON.stringify({id,[field]:val})});
+    loadAdmin();
+  }
+
+  async function boost(id, amt) {
+    await fetch('/api/admin/boost', {method:'PATCH', headers:{...headers,'Content-Type':'application/json'}, body:JSON.stringify({id,amount:Number(amt)})});
     loadAdmin();
   }
 
   async function setPremium(id, level) {
-    await fetch('/api/admin/user', {method:'PATCH', headers:{...headers,'Content-Type':'application/json'}, body:JSON.stringify({id, premiumLevel:level})});
+    await fetch('/api/admin/user', {method:'PATCH', headers:{...headers,'Content-Type':'application/json'}, body:JSON.stringify({id,premiumLevel:level})});
     loadAdmin();
   }
 
-  async function addFakeFollowers(id) {
-    const cur = prompt('Текущее кол-во подписчиков?', '0');
-    const newC = parseInt(cur) + 100;
-    await fetch('/api/admin/user', {method:'PATCH', headers:{...headers,'Content-Type':'application/json'}, body:JSON.stringify({id, followersCount:newC})});
-    loadAdmin();
+  // НОВАЯ ФУНКЦИЯ: Очистка ленты
+  async function clearPosts() {
+    if (!confirm('Ты реально хочешь удалить ВСЕ посты в ленте? Это необратимо!')) return;
+
+    try {
+      const r = await fetch('/api/admin/posts/clear', {
+        method: 'POST',
+        headers: { 'x-admin-pass': PASS }
+          });
+      const d = await r.json();
+      if (d.success) {
+        alert('Лента очищена! Все посты удалены.');
+        loadAdmin();  // обновляем статистику
+      } else {
+        alert('Ошибка: ' + (d.error || 'Неизвестная ошибка'));
+      }
+    } catch (e) {
+      alert('Ошибка сети: ' + e.message);
+    }
   }
 
   function filter() {
