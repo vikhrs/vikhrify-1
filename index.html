@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { margin:0; background:#000; color:#fff; font-family:sans-serif; padding-bottom: 80px; }
+        .view { display:none; padding:20px; } .view.active { display:block; }
+        .nav { position:fixed; bottom:0; width:100%; display:flex; background:#111; padding:15px 0; border-top:1px solid #333; }
+        .nav button { flex:1; background:none; border:none; color:#fff; font-size:16px; }
+        #burger { position:fixed; left:-100%; top:0; width:70%; height:100%; background:#1a1a1a; transition:0.3s; z-index:99; padding:20px; }
+        #burger.open { left:0; }
+        .btn { width:100%; padding:15px; margin:10px 0; background:#007bff; border-radius:10px; color:#fff; border:none; }
+    </style>
+</head>
+<body>
+    <div id="burger">
+        <button class="btn" onclick="document.getElementById('burger').classList.remove('open')">✕ Закрыть</button>
+        <button class="btn" onclick="show('pub')">📤 Опубликовать пост</button>
+        <button class="btn" onclick="alert('Поиск...')">🔍 Поиск людей</button>
+        <hr>
+        <h3>Аккаунты</h3>
+        <div id="acc-list"></div>
+        <button class="btn" onclick="addAcc()">+ Добавить аккаунт</button>
+        <button class="btn" style="background:#800" onclick="logout()">🚪 Выйти</button>
+    </div>
+
+    <button onclick="document.getElementById('burger').classList.add('open')">≡ Меню</button>
+    <div id="v-feed" class="view active"><h1>Лента</h1><div id="posts"></div></div>
+    <div id="v-chats" class="view"><h1>Чаты</h1><div id="chats"></div></div>
+    <div id="v-profile" class="view"><h1>Профиль</h1><div id="profile-info"></div></div>
+
+    <nav class="nav">
+        <button onclick="show('feed')">🏠 Лента</button>
+        <button onclick="show('chats')">💬 Чаты</button>
+        <button onclick="show('profile')">👤 Профиль</button>
+    </nav>
+
+    <script>
+        let accs = JSON.parse(localStorage.getItem('accs')) || [];
+        function show(v) { document.querySelectorAll('.view').forEach(e=>e.classList.remove('active')); document.getElementById('v-'+v).classList.add('active'); }
+        function addAcc() { 
+            let u = prompt("Логин:"); 
+            if(u) { accs.push(u); localStorage.setItem('accs', JSON.stringify(accs)); renderAccs(); } 
+        }
+        function renderAccs() { document.getElementById('acc-list').innerHTML = accs.map(a => `<button class='btn'>${a}</button>`).join(''); }
+        function logout() { accs.pop(); localStorage.setItem('accs', JSON.stringify(accs)); location.reload(); }
+        renderAccs();
+    </script>
+</body>
+</html>
