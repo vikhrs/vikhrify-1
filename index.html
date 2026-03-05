@@ -26,13 +26,6 @@
     .verified-yellow::after { content:"✔"; color:#fbbc05; font-size:1.1em; margin-left:4px; }
     .verified-red::after   { content:"✔"; color:#ff0000;   font-size:1.1em; margin-left:4px; }
     .post img { max-width:100%; border-radius:10px; margin-top:10px; display:block; }
-    .chat-list, .msg-list { max-height:60vh; overflow-y:auto; }
-    .chat-item { padding:12px; border-bottom:1px solid #30363d; cursor:pointer; }
-    .chat-item:hover { background:#1f2937; }
-    #slider-price { width:100%; margin:20px 0; }
-    .msg-bubble { margin:8px; padding:10px 14px; border-radius:18px; max-width:80%; word-break:break-word; }
-    .msg-bubble.sent { background:#238636; align-self:flex-end; }
-    .msg-bubble.received { background:#30363d; align-self:flex-start; }
   </style>
 </head>
 <body>
@@ -53,32 +46,10 @@
 
   <div id="feed" class="section active">
     <h2>Лента</h2>
-    <input id="search-user" placeholder="Найти по @username..." style="margin-bottom:16px; width:100%;">
     <textarea id="post-text" placeholder="Что нового?" rows="3"></textarea>
     <input type="file" id="post-photo" accept="image/*">
     <button class="btn-primary" onclick="publishPost()" style="margin-top:12px;">Опубликовать</button>
     <div id="posts-list"></div>
-  </div>
-
-  <div id="messages" class="section">
-    <h2>Сообщения</h2>
-    <input id="search-chat" placeholder="Найти @username..." oninput="filterChats()" style="margin-bottom:12px;">
-    <div id="chat-list" class="chat-list"></div>
-    <div id="chat-view" style="display:none;">
-      <div style="padding:12px; background:#1f2937; border-bottom:1px solid #30363d; display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:10;">
-        <button onclick="backToChatList()" style="background:none; color:#58a6ff; border:none; font-size:1.2rem;">←</button>
-        <img id="chat-avatar" class="avatar" src="">
-        <div>
-          <div id="chat-name" style="font-weight:bold;"></div>
-          <small id="chat-username"></small>
-        </div>
-      </div>
-      <div id="msg-list" class="msg-list" style="padding:12px; display:flex; flex-direction:column;"></div>
-      <div style="padding:12px; background:#161b22; border-top:1px solid #30363d; position:sticky; bottom:60px;">
-        <input id="msg-input" placeholder="Сообщение..." style="margin:0;">
-        <button class="btn-primary" onclick="sendMessage()" style="margin-top:8px;">Отправить</button>
-      </div>
-    </div>
   </div>
 
   <div id="buy" class="section">
@@ -88,11 +59,10 @@
     <p>Сумма: <b id="price-val">500</b> ₽ → <b id="vxr-val">500</b> VXR</p>
     <button class="btn-primary" onclick="buyVXR()">Оплатить через Platega</button>
 
-    <h3 style="margin-top:32px;">Премиум-галочка (60 дней)</h3>
+    <h3 style="margin-top:32px;">Премиум (60 дней)</h3>
     <button class="btn-primary" onclick="buyPremium('blue')" style="background:#1d9bf0; margin:8px 0;">Синяя галочка — 299 ₽</button>
     <button class="btn-primary" onclick="buyPremium('yellow')" style="background:#fbbc05; color:#000; margin:8px 0;">Жёлтая галочка — 499 ₽</button>
   </div>
-
   <div id="profile" class="section">
     <h2>Профиль</h2>
     <img id="my-avatar" class="avatar" src="https://via.placeholder.com/96" style="width:96px;height:96px;">
@@ -106,9 +76,19 @@
     <div id="my-posts"></div>
   </div>
 
+  <div id="user-profile" class="section">
+    <h2 id="user-name"></h2>
+    <img id="user-avatar" class="avatar" src="" style="width:96px;height:96px;">
+    <p>Юзернейм: @<span id="user-username"></span></p>
+    <p>Галочка: <span id="user-verified"></span></p>
+    <p>Подписчики: <b id="user-followers">0</b></p>
+    <button id="follow-btn" class="btn-primary" onclick="toggleFollow()">Подписаться</button>
+    <h3>Посты</h3>
+    <div id="user-posts"></div>
+  </div>
+
   <nav>
     <button class="active" onclick="show('feed')">Лента</button>
-    <button onclick="show('messages')">Сообщения</button>
     <button onclick="show('buy')">Купить</button>
     <button onclick="show('profile')">Профиль</button>
   </nav>
@@ -116,16 +96,26 @@
 
 <script>
 let user = null;
-let currentChatUserId = null;
-const msgEl = document.getElementById('auth-msg');
+let currentUserProfileId = null;
+
+const saved = localStorage.getItem('user');
+if (saved) {
+  user = JSON.parse(saved);
+  document.getElementById('auth').classList.add('hidden');
+  document.getElementById('app').style.display = 'block';
+  initApp();
+}
 
 async function register() {
-  msgEl.innerHTML = '';
   const name = document.getElementById('name').value.trim();
   const username = document.getElementById('username').value.trim();
   const password = document.getElementById('password').value.trim();
+  const msg = document.getElementById('auth-msg');
 
-  if (!name  !username  !password) return msgEl.innerHTML = '<span style="color:#f33">Заполните все поля</span>';
+  if (!name  !username  !password) {
+    msg.innerHTML = '<span style="color:#f33">Заполните все поля</span>';
+    return;
+  }
 
   try {
     const r = await fetch('/api/register', {
@@ -134,22 +124,18 @@ async function register() {
       body: JSON.stringify({name, username, password})
     });
     const d = await r.json();
-    if (d.success) {
-      msgEl.innerHTML = '<span style="color:#0f0">Зарегистрирован! Войдите.</span>';
-    } else {
-      msgEl.innerHTML = '<span style="color:#f33">' + (d.error || 'Ошибка') + '</span>';
-    }
-  } catch(e) {
-    msgEl.innerHTML = '<span style="color:#f33">Ошибка сети</span>';
+    if (d.success) msg.innerHTML = '<span style="color:#0f0">Готово! Войдите.</span>';
+    else msg.innerHTML = '<span style="color:#f33">' + (d.error || 'Ошибка') + '</span>';
+  } catch {
+    msg.innerHTML = '<span style="color:#f33">Ошибка сети</span>';
   }
 }
 
 async function login() {
-  msgEl.innerHTML = '';
   const username = document.getElementById('username').value.trim();
   const password = document.getElementById('password').value.trim();
+  const msg = document.getElementById('auth-msg');
 
-  if (!username || !password) return msgEl.innerHTML = '<span style="color:#f33">Заполните юзернейм и пароль</span>';
   try {
     const r = await fetch('/api/login', {
       method: 'POST',
@@ -164,51 +150,31 @@ async function login() {
       document.getElementById('app').style.display = 'block';
       initApp();
     } else {
-      msgEl.innerHTML = '<span style="color:#f33">' + (d.error || 'Неверно') + '</span>';
+      msg.innerHTML = '<span style="color:#f33">' + (d.error || 'Неверно') + '</span>';
     }
-  } catch(e) {
-    msgEl.innerHTML = '<span style="color:#f33">Ошибка сети</span>';
+  } catch {
+    msg.innerHTML = '<span style="color:#f33">Ошибка сети</span>';
   }
-}
-
-const saved = localStorage.getItem('user');
-if (saved) {
-  user = JSON.parse(saved);
-  document.getElementById('auth').classList.add('hidden');
-  document.getElementById('app').style.display = 'block';
-  initApp();
 }
 
 function initApp() {
   loadProfile();
   loadPosts();
-  loadChats();
-  show('feed');
-
-  const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('payment') === 'success') {
-    alert('Оплата прошла успешно! Баланс / премиум обновятся.');
-    loadProfile();
-  } else if (urlParams.get('payment') === 'fail') {
-    alert('Оплата не удалась.');
-  }
 }
 
 function show(id) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
-  if (id === 'messages') loadChats();
+  document.querySelector(nav button[onclick="show('${id}')"]).classList.add('active');
   if (id === 'feed') loadPosts();
   if (id === 'profile') loadProfile();
 }
 
-// Посты
 async function loadPosts() {
   const r = await fetch('/api/posts');
-  const all = await r.json();
-  document.getElementById('posts-list').innerHTML = all.map(p => {
+  const posts = await r.json();
+  document.getElementById('posts-list').innerHTML = posts.map(p => {
     let vclass = '';
     if (p.isVerified === 'blue') vclass = 'verified-blue';
     if (p.isVerified === 'yellow') vclass = 'verified-yellow';
@@ -232,7 +198,6 @@ async function loadPosts() {
 }
 
 async function publishPost() {
-  if (!user) return alert('Войдите');
   const content = document.getElementById('post-text').value.trim();
   const file = document.getElementById('post-photo').files[0];
 
@@ -262,7 +227,6 @@ async function sendPost(content, image) {
   loadPosts();
 }
 
-// Профиль
 async function loadProfile() {
   const r = await fetch(/api/me/${user.id});
   user = await r.json();
@@ -273,6 +237,7 @@ async function loadProfile() {
   document.getElementById('my-avatar').src = user.avatar;
   document.getElementById('my-balance').textContent = user.balance;
   document.getElementById('my-followers').textContent = (user.followers || []).length;
+
   let ver = 'нет';
   if (user.isVerified === 'blue') ver = '<span style="color:#1d9bf0">синяя ✔</span>';
   if (user.isVerified === 'yellow') ver = '<span style="color:#fbbc05">жёлтая ✔</span>';
@@ -284,8 +249,8 @@ async function loadProfile() {
     : 'нет';
 
   const pr = await fetch('/api/posts');
-  const my = (await pr.json()).filter(p => p.userId === user.id);
-  document.getElementById('my-posts').innerHTML = my.map(p => 
+  const myPosts = (await pr.json()).filter(p => p.userId === user.id);
+  document.getElementById('my-posts').innerHTML = myPosts.map(p => 
     <div class="post">
       <p>${p.content}</p>
       \( {p.image ? <img src=" \){p.image}"> : ''}
@@ -305,82 +270,57 @@ function editName() {
   }
 }
 
-// Чаты
-async function loadChats() {
-  const r = await fetch('/api/admin/users'); // временно, можно заменить на отдельный эндпоинт
-  const list = await r.json();
-  document.getElementById('chat-list').innerHTML = list
-    .filter(u => u.id !== user.id)
-    .map(u => 
-      <div class="chat-item" onclick="openChat(\( {u.id}, ' \){u.name.replace(/'/g,"\\'")}', '\( {u.username}', ' \){u.avatar}')">
-        <div style="display:flex;gap:12px;align-items:center;">
-          <img src="${u.avatar}" class="avatar" style="width:40px;height:40px;">
-          <div>
-            <b>\( {u.name}</b><br>@ \){u.username}
-          </div>
-        </div>
-      </div>
-    ).join('');
-}
+async function openUserProfile(id) {
+  if (id === user.id) return show('profile');
 
-function filterChats() {
-  const q = document.getElementById('search-chat').value.toLowerCase();
-  document.querySelectorAll('#chat-list .chat-item').forEach(el => {
-    el.style.display = el.textContent.toLowerCase().includes(q) ? '' : 'none';
-  });
-}
+  const r = await fetch(/api/user/${id});
+  if (!r.ok) return alert('Пользователь не найден');
+  const target = await r.json();
 
-async function openChat(id, name, username, avatar) {
-  currentChatUserId = id;
-  document.getElementById('chat-name').textContent = name;
-  document.getElementById('chat-username').textContent = '@' + username;
-  document.getElementById('chat-avatar').src = avatar;
-  document.getElementById('chat-list').style.display = 'none';
-  document.getElementById('chat-view').style.display = 'block';
-  await loadMessages(id);
-}
+  const isFollowing = (target.followers || []).includes(user.id);
 
-function backToChatList() {
-  document.getElementById('chat-view').style.display = 'none';
-  document.getElementById('chat-list').style.display = '';
-}
+  document.getElementById('user-name').textContent = target.name;
+  document.getElementById('user-username').textContent = target.username;
+  document.getElementById('user-avatar').src = target.avatar;
+  document.getElementById('user-followers').textContent = target.followersCount;
+  let ver = 'нет';
+  if (target.isVerified === 'blue') ver = '<span style="color:#1d9bf0">синяя ✔</span>';
+  if (target.isVerified === 'yellow') ver = '<span style="color:#fbbc05">жёлтая ✔</span>';
+  if (target.isVerified === 'red') ver = '<span style="color:#ff0000">красная ✔</span>';
+  document.getElementById('user-verified').innerHTML = ver;
 
-async function loadMessages(otherId) {
-  const r = await fetch(/api/messages/\( {otherId}?myId= \){user.id});
-  const msgs = await r.json();
-  const container = document.getElementById('msg-list');
-  container.innerHTML = msgs.map(m => 
-    <div class="msg-bubble ${m.fromId === user.id ? 'sent' : 'received'}">
-      ${m.text}
-      <small style="display:block; opacity:0.7; margin-top:4px; text-align:right;">
-        ${new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-      </small>
+  document.getElementById('follow-btn').textContent = isFollowing ? 'Отписаться' : 'Подписаться';
+  document.getElementById('follow-btn').onclick = () => toggleFollow(id, !isFollowing);
+
+  const pr = await fetch('/api/posts');
+  const posts = (await pr.json()).filter(p => p.userId === id);
+  document.getElementById('user-posts').innerHTML = posts.map(p => 
+    <div class="post">
+      <p>${p.content}</p>
+      \( {p.image ? <img src=" \){p.image}"> : ''}
     </div>
   ).join('');
-  container.scrollTop = container.scrollHeight;
+
+  show('user-profile');
 }
 
-async function sendMessage() {
-  const text = document.getElementById('msg-input').value.trim();
-  if (!text) return;
-
-  await fetch('/api/messages', {
+async function toggleFollow(targetId, doFollow) {
+  await fetch('/api/follow', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({fromId: user.id, toId: currentChatUserId, text})
+    body: JSON.stringify({userId: user.id, targetId})
   });
-
-  document.getElementById('msg-input').value = '';
-  loadMessages(currentChatUserId);
+  openUserProfile(targetId); // обновим
 }
 
 // Покупки
 document.getElementById('slider-price').oninput = function() {
   const v = this.value;
   document.getElementById('price-val').textContent = v;
-  document.getElementById('vxr-val').textContent = v;
+  document.getElementById('wxr-val').textContent = v;
 };
-  async function buyVXR() {
+
+async function buyWXR() {
   const amount = document.getElementById('slider-price').value;
   try {
     const r = await fetch('/api/buy-vxr', {
@@ -389,90 +329,13 @@ document.getElementById('slider-price').oninput = function() {
       body: JSON.stringify({userId: user.id, amountRub: amount})
     });
     const d = await r.json();
-    if (d.success) {
-      window.location.href = d.paymentUrl;
-    } else {
-      alert('Ошибка: ' + (d.error || 'Не удалось создать платёж'));
-    }
-  } catch(e) {
+    if (d.success) window.location.href = d.paymentUrl;
+    else alert(d.error || 'Ошибка');
+  } catch {
     alert('Ошибка сети');
   }
 }
 
 async function buyPremium(type) {
   const price = type === 'blue' ? 299 : 499;
-  if (!confirm(Оплатить ${type === 'blue' ? 'синюю' : 'жёлтую'} галочку за ${price} ₽?)) return;
-
-  try {
-    const r = await fetch('/api/buy-premium', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({userId: user.id, type})
-    });
-    const d = await r.json();
-    if (d.success) {
-      window.location.href = d.paymentUrl;
-    } else {
-      alert('Ошибка: ' + (d.error || 'Не удалось создать платёж'));
-    }
-  } catch(e) {
-    alert('Ошибка сети');
-  }
-}
-
-// Чужой профиль
-async function openUserProfile(id) {
-  if (id === user.id) return show('profile');
-
-  const r = await fetch(/api/user/${id});
-  if (!r.ok) return alert('Пользователь не найден');
-  const target = await r.json();
-
-  const following = (target.followers || []).includes(user.id);
-
-  const html = 
-    <h2>\( {target.name} @ \){target.username}</h2>
-    <img src="${target.avatar}" class="avatar" style="width:96px;height:96px;">
-    <p>Подписчики: <b>${target.followersCount}</b></p>
-    <button onclick="toggleFollow(${target.id}, ${!following})">
-      ${following ? 'Отписаться' : 'Подписаться'}
-    </button>
-    <h3>Посты</h3>
-    <div id="temp-posts"></div>
-  ;
-
-  const profileSection = document.getElementById('profile');
-  profileSection.innerHTML = html;
-
-  const pr = await fetch('/api/posts');
-  const posts = (await pr.json()).filter(p => p.userId === id);
-  document.getElementById('temp-posts').innerHTML = posts.map(p => 
-    <div class="post">
-      <p>${p.content}</p>
-      \( {p.image ? <img src=" \){p.image}"> : ''}
-    </div>
-  ).join('');
-
-  show('profile');
-}
-
-async function toggleFollow(targetId, doFollow) {
-  try {
-    const r = await fetch('/api/follow', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({userId: user.id, targetId})
-    });
-    if (r.ok) {
-      alert(doFollow ? 'Подписались!' : 'Отписались');
-      openUserProfile(targetId);
-    } else {
-      alert('Ошибка');
-    }
-  } catch(e) {
-    alert('Ошибка сети');
-  }
-}
-</script>
-</body>
-</html>
+  if (!confirm(`Купить ${type === 'blue' ? 'синюю' : 'жёлтую'} галочку за ${price}
