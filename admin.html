@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<body style="background:#000; color:#fff; padding:20px;">
+    <h1>Панель управления</h1>
+    <input id="pass" class="input" type="password" placeholder="Пароль">
+    <button class="btn" onclick="load()">Войти</button>
+    <div id="list"></div>
+    <script>
+        async function load() {
+            const r = await fetch('/api/admin', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({pass: document.getElementById('pass').value}) });
+            const d = await r.json();
+            document.getElementById('list').innerHTML = d.users.map(u => `
+                <div style="border:1px solid #444; padding:15px; margin:10px 0;">
+                    <b>${u.username}</b> ${u.badge ? '✔' : ''}<br>
+                    <button onclick="act(${u.id}, 'ban')">Бан/Разбан</button>
+                    <button onclick="act(${u.id}, 'badge')">Галочка</button>
+                </div>
+            `).join('');
+        }
+        async function act(uid, act) { 
+            await fetch('/api/admin', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({pass: document.getElementById('pass').value, uid, act}) });
+            load(); 
+        }
+    </script>
+</body>
+</html>
