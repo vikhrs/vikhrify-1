@@ -1,1 +1,0 @@
-# vikhrify-1
