@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vikhrify | Новая Эра</title>
+    <style>
+        :root { --bg: #ffffff; --card: #f0f2f5; --text: #000; --accent: #007bff; --border: #ddd; }
+        [data-theme="dark"] { --bg: #0d1117; --card: #161b22; --text: #e6edf3; --accent: #58a6ff; --border: #30363d; }
+        
+        body { margin:0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); transition: 0.3s; }
+        header { position:fixed; top:0; width:100%; height:60px; background: var(--card); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content: space-between; padding:0 15px; z-index:1000; box-sizing: border-box; }
+        
+        .stories-bar { display:flex; gap:10px; overflow-x:auto; padding:15px; margin-top:60px; background: var(--bg); border-bottom:1px solid var(--border); }
+        .story-circle { min-width:65px; height:65px; border:3px solid var(--accent); border-radius:50%; padding:2px; cursor:pointer; }
+        .story-circle img { width:100%; height:100%; border-radius:50%; object-fit:cover; }
+
+        .container { max-width:600px; margin: 10px auto 70px auto; padding:0 10px; }
+        .post { background: var(--card); border-radius:15px; padding:15px; margin-bottom:15px; border:1px solid var(--border); }
+        
+        .nav-bottom { position:fixed; bottom:0; width:100%; height:60px; background: var(--card); display:flex; border-top:1px solid var(--border); }
+        .nav-btn { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; font-size:12px; }
+        
+        .lvl-badge { background: var(--accent); color:#fff; padding:2px 8px; border-radius:10px; font-size:10px; margin-left:5px; }
+        
+        #auth-screen { position:fixed; inset:0; z-index:9999; background: var(--bg); display:flex; align-items:center; justify-content:center; }
+        .auth-box { width:90%; max-width:350px; text-align:center; }
+        input { width:100%; padding:12px; margin:5px 0; border-radius:8px; border:1px solid var(--border); background:var(--card); color:var(--text); box-sizing: border-box; }
+        button { width:100%; padding:12px; border-radius:8px; border:none; background:var(--accent); color:#fff; cursor:pointer; font-weight:bold; }
+        
+        .verified-blue::after { content:" ✔"; color:#1d9bf0; }
+        .verified-yellow::after { content:" ✔"; color:#fbbc05; }
+        .verified-red::after { content:" ⚡"; color:#ff4444; }
+        .hidden { display:none !important; }
+    </style>
+</head>
+<body data-theme="dark">
+
+<div id="auth-screen">
+    <div class="auth-box">
+        <h1>Vikhrify</h1>
+        <div id="reg-fields" class="hidden"><input id="reg-name" placeholder="Имя"></div>
+        <input id="auth-u" placeholder="Логин">
+        <input id="auth-p" type="password" placeholder="Пароль">
+        <button onclick="auth()" id="auth-btn">Войти</button>
+        <p onclick="toggleReg()" id="auth-toggle" style="cursor:pointer; font-size:14px; margin-top:10px">Нет аккаунта? Регистрация</p>
+    </div>
+</div>
+
+<header>
+    <b>Vikhrify</b>
+    <button onclick="toggleTheme()" style="width:auto; padding:5px 10px">🌓</button>
+</header>
+
+<div id="view-feed" class="view">
+    <div class="stories-bar" id="stories">
+        <div class="story-circle" onclick="addStory()"><img src="https://cdn-icons-png.flaticon.com/512/1828/1828817.png"></div>
+    </div>
+    <div style="display:flex; border-bottom:1px solid var(--border)">
+        <div class="nav-btn" style="padding:15px; font-weight:bold" onclick="setFeed('all')" id="tab-all">Для вас</div>
+        <div class="nav-btn" style="padding:15px; color:#888" onclick="setFeed('following')" id="tab-fol">Читаю</div>
+    </div>
+    <div class="container" id="posts"></div>
+</div>
+
+<div id="view-profile" class="view hidden">
+    <div class="container" style="text-align:center; margin-top:80px">
+        <img id="p-avatar" style="width:100px; height:100px; border-radius:50%; border:2px solid var(--accent)">
+        <h2 id="p-name"></h2>
+        <div id="p-lvl-info">Уровень: <span id="p-lvl">1</span> <span class="lvl-badge">XP</span></div>
+        <p id="p-user" style="color:#888"></p>
+        <div id="p-stats">Подписчики: <b id="p-subs">0</b> | Баланс: <b id="p-bal">0</b> VXR</div>
+        <div id="p-actions" style="margin-top:15px"></div>
+    </div>
+</div>
+
+<div id="view-shop" class="view hidden">
+    <div class="container" style="margin-top:80px">
+        <h2>Магазин VXR</h2>
+        <div class="post">100 VXR — 100₽ <button onclick="window.open('https://vxr.tilda.ws/')">Купить</button></div>
+        <div class="post">1000 VXR — 1000₽ <button onclick="window.open('https://vxr.tilda.ws/')">Купить</button></div>
+        <div class="post">10 000 VXR — 10 000₽ <button onclick="window.open('https://vxr.tilda.ws/')">Купить</button></div>
+        <hr>
+        <div class="post">Синяя галочка <small>(299 VXR)</small> <button onclick="buy('blue', 299)">Купить</button></div>
+        <div class="post">Золотая галочка <small>(490 VXR)</small> <button onclick="buy('yellow', 490)">Купить</button></div>
+    </div>
+</div>
+
+<nav class="nav-bottom">
+    <div class="nav-btn" onclick="show('feed')">🏠</div>
+    <div class="nav-btn" onclick="show('search')">🔍</div>
+    <div class="nav-btn" onclick="show('chats')">💬</div>
+    <div class="nav-btn" onclick="show('shop')">🛒</div>
+    <div class="nav-btn" onclick="show('profile')">👤</div>
+</nav>
+
+<script>
+let curUser = JSON.parse(localStorage.getItem('user'));
+let isReg = false;
+let feedType = 'all';
+
+function toggleReg() { 
+    isReg = !isReg; 
+    document.getElementById('reg-fields').classList.toggle('hidden', !isReg);
+    document.getElementById('auth-btn').innerText = isReg ? 'Создать аккаунт' : 'Войти';
+}
+
+function toggleTheme() {
+    const b = document.body;
+    b.dataset.theme = b.dataset.theme === 'dark' ? 'light' : 'dark';
+}
+
+async function auth() {
+    const username = document.getElementById('auth-u').value;
+    const password = document.getElementById('auth-p').value;
+    const name = document.getElementById('reg-name').value;
+    
+    const r = await fetch(isReg ? '/api/register' : '/api/login', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({username, password, name})
+    });
+    const d = await r.json();
+    if(d.success) {
+        localStorage.setItem('user', JSON.stringify(d.user));
+        location.reload();
+    } else alert(d.error);
+}
+
+function show(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+    document.getElementById('view-'+id).classList.remove('hidden');
+    if(id === 'profile') loadProfile(curUser.username);
+    if(id === 'feed') loadPosts();
+}
+
+async function loadPosts() {
+    const r = await fetch(`/api/posts?mode=${feedType}&me=${curUser.username}`);
+    const data = await r.json();
+    document.getElementById('posts').innerHTML = data.map(p => `
+        <div class="post">
+            <b onclick="loadProfile('${p.username}')">${p.name}</b> <small>@${p.username}</small>
+            <p>${p.content}</p>
+        </div>
+    `).join('');
+}
+
+async function loadProfile(un) {
+    const r = await fetch('/api/user/'+un);
+    const d = await r.json();
+    show('profile');
+    document.getElementById('p-avatar').src = d.avatar;
+    document.getElementById('p-name').innerText = d.name;
+    document.getElementById('p-name').className = 'verified-' + d.isVerified;
+    document.getElementById('p-lvl').innerText = d.level || 1;
+    document.getElementById('p-user').innerText = '@' + d.username;
+    document.getElementById('p-bal').innerText = d.balance;
+    document.getElementById('p-subs').innerText = d.followers;
+    
+    const isMe = un === curUser.username;
+    document.getElementById('p-actions').innerHTML = isMe ? 
+        `<button onclick="alert('Скоро!')">Редактировать</button>` : 
+        `<button onclick="follow('${un}')">Подписаться</button> <button onclick="openChat('${un}')">Написать</button>`;
+}
+
+async function buy(type, price) {
+    const r = await fetch('/api/buy', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({userId: curUser.id, type, price})
+    });
+    const d = await r.json();
+    if(d.success) {
+        localStorage.setItem('user', JSON.stringify(d.user));
+        alert("Поздравляем с покупкой!");
+        location.reload();
+    } else alert(d.error);
+}
+
+function setFeed(t) {
+    feedType = t;
+    document.getElementById('tab-all').style.color = t==='all' ? 'var(--accent)' : '#888';
+    document.getElementById('tab-fol').style.color = t==='following' ? 'var(--accent)' : '#888';
+    loadPosts();
+}
+
+if(curUser) {
+    document.getElementById('auth-screen').classList.add('hidden');
+    loadPosts();
+}
+</script>
+</body>
+</html>
