@@ -28,7 +28,7 @@
         <th>ID</th>
         <th>@username</th>
         <th>Имя</th>
-        <th>Баланс</th>
+        <th>Баланс (WXR)</th>
         <th>Галочка</th>
         <th>Премиум до</th>
         <th>Подписчики</th>
@@ -39,7 +39,9 @@
     <tbody id="tbl"></tbody>
   </table>
 
-  <button onclick="deleteAllPostsPrompt()" style="background:#ff4444; color:white; padding:10px 20px; margin:20px 0;">Удалить все посты пользователя...</button>
+  <button onclick="deleteAllPostsPrompt()" style="background:#ff4444; color:white; padding:10px 20px; margin:20px 0;">
+    Удалить все посты пользователя...
+  </button>
 
   <div style="margin-top:30px;">
     <button onclick="changeAdminPassword()" style="background:#0066cc; color:white; padding:12px 24px; font-size:1.1rem;">
@@ -50,7 +52,6 @@
   <script>
   let currentAdminPass = null;
 
-  // Запрос пароля при загрузке
   const enteredPass = prompt('Введите пароль администратора:');
 
   if (!enteredPass) {
@@ -126,11 +127,8 @@
 
   async function update(id, field, val) {
     let body = { id };
-    if (field === 'followersCount') {
-      body.followersCount = Number(val);
-    } else {
-      body[field] = val === 'null' ? null : val;
-    }
+    if (field === 'followersCount') body.followersCount = Number(val);
+    else body[field] = val === 'null' ? null : val;
 
     await fetch('/api/admin/user', {
       method: 'PATCH',
@@ -159,7 +157,7 @@
   }
 
   function deleteAllPostsPrompt() {
-    const id = prompt('ID пользователя, у которого удалить все посты:');
+    const id = prompt('ID пользователя:');
     if (id) deleteAllPosts(Number(id));
   }
 
@@ -171,13 +169,13 @@
   }
 
   async function changeAdminPassword() {
-    const oldPass = prompt('Введите ТЕКУЩИЙ пароль админки:');
+    const oldPass = prompt('Текущий пароль админки:');
     if (oldPass !== currentAdminPass) {
-      alert('Неверный текущий пароль');
+      alert('Неверный пароль');
       return;
     }
 
-    const newPass = prompt('Новый пароль (минимум 6 символов):');
+    const newPass = prompt('Новый пароль (мин. 6 символов):');
     if (!newPass || newPass.trim().length < 6) {
       alert('Пароль слишком короткий');
       return;
@@ -193,12 +191,11 @@
         body: JSON.stringify({ newPassword: newPass.trim() })
       });
 
-      const data = await r.json();
       if (r.ok) {
-        alert('Пароль изменён! Новый пароль: ' + newPass.trim() + '\nЗапомните его.');
+        alert('Пароль изменён! Новый: ' + newPass.trim());
         currentAdminPass = newPass.trim();
       } else {
-        alert('Ошибка: ' + (data.error || 'Не удалось сменить пароль'));
+        alert('Ошибка смены пароля');
       }
     } catch (e) {
       alert('Ошибка сети');
