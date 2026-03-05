@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Vikhrify Admin</title>
+    <style>
+        body { background: #0d1117; color: white; font-family: sans-serif; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .card { background: #161b22; padding: 20px; border-radius: 12px; border: 1px solid #333; width: 100%; max-width: 500px; margin-bottom: 15px; }
+        input, select { background: #0d1117; color: white; border: 1px solid #444; padding: 8px; width: 100%; box-sizing: border-box; margin: 5px 0; border-radius: 6px; }
+        button { background: #238636; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Админ Панель</h1>
+    
+    <div id="login-form" class="card">
+        <input type="password" id="pass" placeholder="Пароль администратора">
+        <button onclick="login()">Войти</button>
+    </div>
+
+    <div id="content" style="display:none; width:100%; max-width:500px"></div>
+
+    <script>
+        let p = "";
+        async function login() {
+            p = document.getElementById('pass').value;
+            const r = await fetch('/api/admin/login', { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ password: p }) 
+            });
+            const d = await r.json();
+            if(d.success) {
+                document.getElementById('login-form').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+                render(d.users);
+            } else alert('Неверный пароль');
+        }
+
+        function render(users) {
+            document.getElementById('content').innerHTML = users.map(u => `
+                <div class="card">
+                    <b>${u.name} (@${u.username})</b><br>
+                    Баланс: <input id="b-${u.id}" value="${u.balance}">
+                    Уровень: <input id="l-${u.id}" value="${u.level}">
+                    Галка: 
+                    <select id="v-${u.id}">
+                        <option value="false" ${!u.isVerified?'selected':''}>Нет</option>
+                        <option value="blue" ${u.isVerified==='blue'?'selected':''}>Синяя</option>
+                        <option value="yellow" ${u.isVerified==='yellow'?'selected':''}>Золотая</option>
+                    </select>
+                    <button onclick="save(${u.id})">Сохранить</button>
+                </div>`).join('');
+        }
+
+        async function save(id) {
+            const r = await fetch('/api/admin/update', {
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    password: p, 
+                    userId: id, 
+                    balance: document.getElementById('b-'+id).value, 
+                    level: document.getElementById('l-'+id).value, 
+                    isVerified: document.getElementById('v-'+id).value
+                })
+            });
+            if(r.ok) alert('Сохранено!');
+            else alert('Ошибка');
+        }
+    </script>
+</body>
+</html>
