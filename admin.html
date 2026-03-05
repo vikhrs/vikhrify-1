@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head><title>Admin Vikhrify</title><style>body{background:#0d1117;color:#fff;padding:20px;font-family:sans-serif;} .card{background:#161b22;padding:15px;margin-bottom:10px;border-radius:10px; border:1px solid #333;}</style></head>
+<body>
+    <h1>Админ-панель (Vikhrify Engine)</h1>
+    <div id="u-l"></div>
+    <script>
+        const pass = prompt("Пароль:");
+        async function load() {
+            const r = await fetch('/api/admin/users', { headers: {'x-admin-pass': pass} });
+            if(r.status===403) return alert("Нет доступа");
+            const users = await r.json();
+            document.getElementById('u-l').innerHTML = users.map(u => `
+                <div class="card">
+                    <b>${u.name}</b> (@${u.username}) <br><br>
+                    Баланс VXR: <input id="b-${u.id}" value="${u.balance}" type="number"> <br>
+                    Уровень: <input id="l-${u.id}" value="${u.level}" type="number"> <br>
+                    XP: <input id="x-${u.id}" value="${u.xp}" type="number"> <br>
+                    Галка: <select id="v-${u.id}">
+                        <option value="false" ${!u.isVerified?'selected':''}>Нет</option>
+                        <option value="blue" ${u.isVerified==='blue'?'selected':''}>Синяя</option>
+                        <option value="yellow" ${u.isVerified==='yellow'?'selected':''}>Золотая</option>
+                    </select>
+                    <button onclick="save(${u.id})">Применить всё</button>
+                </div>`).join('');
+        }
+        async function save(id) {
+            const balance = document.getElementById('b-'+id).value;
+            const level = document.getElementById('l-'+id).value;
+            const xp = document.getElementById('x-'+id).value;
+            const isVerified = document.getElementById('v-'+id).value;
+            await fetch('/api/admin/edit-user', {
+                method:'POST', headers:{'Content-Type':'application/json','x-admin-pass':pass},
+                body: JSON.stringify({id, balance, level, xp, isVerified: isVerified === 'false' ? false : isVerified})
+            });
+            alert("Данные обновлены!"); load();
+        }
+        load();
+    </script>
+</body>
+</html>
