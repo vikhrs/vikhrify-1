@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Вихрифай</title>
+  <style>
+    body { margin:0; font-family:Arial,sans-serif; background:#111; color:#eee; }
+    #auth { position:fixed; inset:0; background:#000c; display:flex; align-items:center; justify-content:center; z-index:100; }
+    #auth.hidden { display:none; }
+    .card { background:#222; padding:24px; border-radius:12px; width:90%; max-width:400px; }
+    input, button, textarea { width:100%; padding:12px; margin:8px 0; border-radius:6px; border:none; font-size:1rem; }
+    button { background:#0284c7; color:white; cursor:pointer; }
+    .buy-btn { background:#7c3aed; }
+    nav { position:fixed; bottom:0; left:0; right:0; background:#1a1a1a; display:flex; box-shadow:0 -2px 10px rgba(0,0,0,0.5); }
+    nav button { flex:1; padding:16px 8px; background:none; border:none; color:#aaa; font-size:0.9rem; }
+    nav button.active { color:#fff; background:#0284c7; }
+    .section { display:none; padding:70px 16px 100px; }
+    .section.active { display:block; }
+    .post { background:#1e1e1e; padding:16px; margin:12px 0; border-radius:8px; }
+    .avatar { width:50px; height:50px; border-radius:50%; object-fit:cover; cursor:pointer; }
+    .badge { font-size:1.3rem; margin-left:4px; }
+    .modal { position:fixed; inset:0; background:#000c; display:none; align-items:center; justify-content:center; z-index:200; }
+    .modal-content { background:#222; padding:20px; border-radius:12px; width:90%; max-width:400px; max-height:80vh; overflow:auto; }
+    #notif-bell { position:absolute; top:10px; right:16px; font-size:1.5rem; cursor:pointer; }
+    #notifs-dropdown { position:absolute; top:50px; right:16px; background:#1e1e1e; border-radius:8px; width:280px; max-height:400px; overflow:auto; display:none; padding:10px; }
+  </style>
+</head>
+<body>
+
+<div id="auth">
+  <div class="card">
+    <h2 style="text-align:center">Добро пожаловать в Вихрифай</h2>
+    <input id="name" placeholder="Имя">
+    <input id="username" placeholder="Юзернейм">
+    <div style="position:relative">
+      <input id="password" type="password" placeholder="Пароль">
+      <span onclick="togglePassword()" style="position:absolute;right:12px;top:16px;cursor:pointer;font-size:1.2rem">👁</span>
+    </div>
+    <button onclick="register()">Зарегистрироваться</button>
+    <button onclick="login()">Войти</button>
+    <div id="auth-msg" style="margin-top:12px;text-align:center;min-height:24px;color:#0f0"></div>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+  <!-- ЛЕНТА -->
+  <div id="feed" class="section active">
+    <h2 style="margin:0 0 10px">Что нового?</h2>
+    <div id="notif-bell" onclick="toggleNotifs()">🛎 <span id="notif-count" style="background:red;border-radius:50%;padding:2px 6px;font-size:0.7rem"></span></div>
+    <div id="notifs-dropdown"></div>
+
+    <button onclick="showSearchPeople()" style="margin-bottom:10px">🔍 Поиск людей</button>
+
+    <textarea id="post-text" placeholder="Что у тебя нового?" rows="3"></textarea>
+    <input type="file" id="post-photo" accept="image/*">
+    <button onclick="publishPost()">Опубликовать</button>
+    <div id="posts-list"></div>
+  </div>
+
+  <!-- ЧАТЫ -->
+  <div id="chats" class="section">
+    <h2>Чаты</h2>
+    <input id="new-chat-search" placeholder="Поиск юзернейма..." onkeyup="searchUsersForChat(event)">
+    <div id="new-chat-results" style="margin:10px 0"></div>
+    <h3>Мои чаты</h3>
+    <div id="my-chats-list"></div>
+
+    <div id="open-chat" style="display:none;margin-top:20px;border-top:1px solid #444;padding-top:10px">
+      <div id="chat-header" style="display:flex;align-items:center;gap:10px;margin-bottom:10px"></div>
+      <div id="chat-messages" style="height:400px;overflow:auto;background:#1a1a1a;padding:10px;border-radius:8px;margin-bottom:10px"></div>
+      <input id="chat-input" placeholder="Напиши сообщение..." style="width:75%">
+      <button onclick="sendCurrentMessage()" style="width:22%">→</button>
+    </div>
+  </div>
+  <!-- КУПИТЬ VXR -->
+  <div id="buy" class="section">
+    <h2>Купить VXR</h2>
+    <p>1 VXR = 1 ₽</p>
+    <label>Сумма: <span id="slider-val">1000</span> VXR</label>
+    <input type="range" id="vxr-slider" min="100" max="10000" step="100" value="1000" oninput="updateSlider()">
+    <p>Цена: <b id="price-val">1000</b> ₽</p>
+    <button class="buy-btn" onclick="buyVXRPackage()">Купить сейчас (симуляция оплаты)</button>
+
+    <h3 style="margin-top:30px">Готовые пакеты</h3>
+    <div id="buy-packages"></div>
+  </div>
+
+  <!-- ПРОФИЛЬ -->
+  <div id="profile" class="section">
+    <h2>Профиль</h2>
+    <img id="my-avatar" class="avatar" style="width:120px;height:120px" onclick="changeAvatar()">
+    <p>Имя: <span id="my-name"></span> <button onclick="editName()">✏</button></p>
+    <p>Юзернейм: @<span id="my-username"></span></p>
+    <p>Баланс: <span id="my-balance">0</span> VXR</p>
+    <p id="my-premium-block">Премиум: <span id="my-premium"></span></p>
+    <button onclick="buyPremium(1)">Синяя галочка — 299 VXR</button>
+    <button onclick="buyPremium(2)">Жёлтая галочка — 499 VXR</button>
+    <button onclick="shareProfile()">Поделиться профилем</button>
+
+    <h3>Мои посты</h3>
+    <div id="my-posts"></div>
+  </div>
+
+  <!-- ПРОФИЛЬ ДРУГОГО -->
+  <div id="other-profile" class="section">
+    <button onclick="show('profile')" style="margin-bottom:10px">← Назад</button>
+    <div id="other-content"></div>
+  </div>
+
+  <nav>
+    <button class="active" onclick="show('feed')">Лента</button>
+    <button onclick="show('chats')">Чаты</button>
+    <button onclick="show('buy')">Купить VXR</button>
+    <button onclick="show('profile')">Профиль</button>
+  </nav>
+</div>
+
+<!-- Модалка поиска людей -->
+<div id="search-modal" class="modal">
+  <div class="modal-content">
+    <h3>Поиск людей</h3>
+    <input id="people-search" placeholder="Юзернейм" onkeyup="searchPeople(event)">
+    <div id="people-results"></div>
+    <button onclick="document.getElementById('search-modal').style.display='none'">Закрыть</button>
+  </div>
+</div>
+
+<script>
+// ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
+let user = null;
+let currentChatId = null;
+let refUsername = new URLSearchParams(location.search).get('ref');
+
+// ==================== АВТОРИЗАЦИЯ (НЕ ТРОГАЛ ОСНОВНОЙ КОД) ====================
+const msg = document.getElementById('auth-msg');
+
+async function register() {
+  msg.innerHTML = '';
+  const name = document.getElementById('name').value.trim();
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value.trim();
+
+  if (!name  !username  !password) return msg.innerHTML = '<span style="color:#f33">Заполните все поля</span>';
+
+  const bodyData = {name, username, password};
+  if (refUsername) bodyData.ref = refUsername;
+
+  try {
+    const r = await fetch('/api/register', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(bodyData)});
+    const d = await r.json();
+    if (d.success) {
+      msg.innerHTML = <span style="color:#0f0">Зарегистрирован! Пароль: ${password} (запомни). Теперь войди.</span>;
+    } else {
+      msg.innerHTML = '<span style="color:#f33">' + (d.error || 'Ошибка') + '</span>';
+    }
+  } catch(e) { msg.innerHTML = '<span style="color:#f33">Ошибка сети</span>'; }
+}
+
+async function login() {
+  msg.innerHTML = '';
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value.trim();
+  if (!username || !password) return msg.innerHTML = '<span style="color:#f33">Заполните юзернейм и пароль</span>';
+
+  try {
+    const r = await fetch('/api/login', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username, password})});
+    const d = await r.json();
+    if (d.success) {
+      user = d.user;
+      localStorage.setItem('user', JSON.stringify(user));
+      document.getElementById('auth').classList.add('hidden');
+      document.getElementById('app').style.display = 'block';
+      initApp();
+    } else {
+      msg.innerHTML = '<span style="color:#f33">' + (d.error || 'Неверно') + '</span>';
+    }
+  } catch(e) { msg.innerHTML = '<span style="color:#f33">Ошибка сети</span>'; }
+}
+
+function togglePassword() {
+  const p = document.getElementById('password');
+  p.type = p.type === 'password' ? 'text' : 'password';
+}
+
+// Автовход
+const saved = localStorage.getItem('user');
+if (saved) {
+  user = JSON.parse(saved);
+  document.getElementById('auth').classList.add('hidden');
+  document.getElementById('app').style.display = 'block';
+  initApp();
+}
+
+function initApp() {
+  loadProfile();
+  loadPosts();
+  loadMyChats();
+  show('feed');
+  updateNotifCount();
+}
+
+// ==================== НАВИГАЦИЯ ====================
+function show(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  const activeBtn = Array.from(document.querySelectorAll('nav button')).find(b => b.getAttribute('onclick').includes('${id}'));
+  if (activeBtn) activeBtn.classList.add('active');
+
+  if (id === 'feed') { loadPosts(); updateNotifCount(); }
+  if (id === 'chats') loadMyChats();
+  if (id === 'profile') loadProfile();
+}
+
+// ==================== ЛЕНТА ====================
+async function loadPosts() {
+  const r = await fetch('/api/posts');
+  const all = await r.json();
+  document.getElementById('posts-list').innerHTML = all.map(p => 
+    <div class="post">
+      <div style="display:flex;gap:12px;align-items:center;cursor:pointer" onclick="showOtherProfile(${p.userId})">
+        <img src="${p.avatar}" class="avatar">
+        <div>
+          <b>\( {p.name}</b><span class="badge" style="color: \){p.premiumLevel===1?'#00f':p.premiumLevel===2?'#ff0':'#f00'}">${p.premiumLevel ? '✔' : ''}</span><br>
+          @${p.username}
+        </div>
+      </div>
+      <p>${p.content}</p>
+      \( {p.image ? <img src=" \){p.image}" style="max-width:100%;border-radius:8px"> : ''}
+      <small>${new Date(p.createdAt).toLocaleString()}</small>
+    </div>
+  ).join('');
+}
+
+async function publishPost() {
+  if (!user) return alert('Войдите');
+  const content = document.getElementById('post-text').value.trim();
+  const file = document.getElementById('post-photo').files[0];
+  if (!content) return alert('Напиши текст');
+
+  let image = null;
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = async () => { image = reader.result; sendPost(content, image); };
+    reader.readAsDataURL(file);
+  } else sendPost(content, null);
+}
+
+async function sendPost(content, image) {
+  await fetch('/api/posts', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:user.id, content, image})});
+  document.getElementById('post-text').value = '';
+  document.getElementById('post-photo').value = '';
+  loadPosts();
+}
+
+// ==================== УВЕДОМЛЕНИЯ ====================
+async function loadNotifications() {
+  const me = await (await fetch(/api/me/${user.id})).json();
+  user.notifications = me.notifications || [];
+  const dd = document.getElementById('notifs-dropdown');
+  dd.innerHTML = user.notifications.length ? user.notifications.map(n => 
+    <div style="padding:8px;border-bottom:1px solid #333">
+      <b>@${n.fromUsername}</b> подписался на тебя
+    </div>
+  ).join('') : '<div style="padding:10px">Нет уведомлений</div>';
+}
+
+function toggleNotifs() {
+  const dd = document.getElementById('notifs-dropdown');
+  dd.style.display = dd.style.display === 'block' ? 'none' : 'block';
+  if (dd.style.display === 'block') loadNotifications();
+}
+
+function updateNotifCount() {
+  // можно обновлять периодически, но для простоты при открытии ленты
+}
+  // ==================== ПОИСК ЛЮДЕЙ ====================
+async function searchPeople(e) {
+  if (e.key !== 'Enter') return;
+  const q = document.getElementById('people-search').value.trim().toLowerCase();
+  if (!q) return;
+  const allUsers = await (await fetch('/api/admin/users')).json(); // используем админский для простоты
+  const res = allUsers.filter(u => u.username.includes(q) && u.id !== user.id);
+  document.getElementById('people-results').innerHTML = res.map(u => 
+    <div style="padding:8px;display:flex;justify-content:space-between">
+      <div onclick="showOtherProfile(${u.id});document.getElementById('search-modal').style.display='none'">
+        <b>\( {u.name}</b> @ \){u.username}
+      </div>
+      <button onclick="followUser(${u.id});event.stopImmediatePropagation()">Подписаться</button>
+    </div>
+  ).join('');
+}
+
+function showSearchPeople() {
+  document.getElementById('search-modal').style.display = 'flex';
+  document.getElementById('people-results').innerHTML = '';
+}
+
+// ==================== ПОДПИСКИ ====================
+async function followUser(targetId) {
+  await fetch('/api/follow', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({fromId:user.id, targetId})});
+  alert('Подписались!');
+}
+
+async function unfollowUser(targetId) {
+  await fetch('/api/unfollow', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({fromId:user.id, targetId})});
+}
+
+// ==================== ПРОФИЛЬ ДРУГОГО ====================
+async function showOtherProfile(id) {
+  const target = await (await fetch(/api/user/${id})).json();
+  const isFollowing = user.following.includes(target.id);
+
+  document.getElementById('other-content').innerHTML = 
+    <img src="${target.avatar}" class="avatar" style="width:120px;height:120px">
+    <h3>${target.name} \( {target.premiumLevel ? <span class="badge" style="color: \){target.premiumLevel===1?'#00f':target.premiumLevel===2?'#ff0':'#f00'}">✔</span> : ''}</h3>
+    <p>@${target.username}</p>
+    <p>Подписчики: ${target.followersCount || 0}</p>
+    <button onclick="\( {isFollowing ? unfollowUser( \){target.id});showOtherProfile(\( {target.id}) : followUser( \){target.id});showOtherProfile(${target.id})}">
+      ${isFollowing ? 'Отписаться' : 'Подписаться'}
+    </button>
+    <h4>Посты</h4>
+    <div id="other-posts"></div>
+  ;
+  show('other-profile');
+
+  // Загружаем посты
+  const all = await (await fetch('/api/posts')).json();
+  const his = all.filter(p => p.userId === target.id);
+  document.getElementById('other-posts').innerHTML = his.map(p => <div class="post"><p>\( {p.content}</p> \){p.image?<img src="${p.image}" style="max-width:100%">:''}</div>).join('');
+}
+
+// ==================== ПРОФИЛЬ СВОЙ ====================
+async function loadProfile() {
+  const r = await fetch(/api/me/${user.id});
+  user = await r.json();
+  localStorage.setItem('user', JSON.stringify(user));
+
+  document.getElementById('my-name').textContent = user.name;
+  document.getElementById('my-username').textContent = user.username;
+  document.getElementById('my-avatar').src = user.avatar;
+  document.getElementById('my-balance').textContent = user.balance;
+
+  const prem = document.getElementById('my-premium');
+  if (user.premiumLevel === 1) prem.innerHTML = 'Синяя галочка <span style="color:#00f">✔</span>';
+  else if (user.premiumLevel === 2) prem.innerHTML = 'Жёлтая галочка <span style="color:#ff0">✔</span>';
+  else if (user.premiumLevel === 3) prem.innerHTML = 'Красная галочка <span style="color:#f00">✔</span>';
+  else prem.textContent = 'нет';
+
+  const pr = await fetch('/api/posts');
+  const myp = (await pr.json()).filter(p => p.userId === user.id);
+  document.getElementById('my-posts').innerHTML = myp.map(p => 
+    <div class="post">
+      <p>${p.content}</p>
+      \( {p.image ? <img src=" \){p.image}" style="max-width:100%"> : ''}
+    </div>
+  ).join('');
+}
+        function editName() {
+  const newName = prompt('Новое имя:', user.name);
+  if (newName) fetch('/api/profile', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:user.id, name:newName.trim()})}).then(()=>loadProfile());
+}
+
+async function changeAvatar() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = async () => {
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = async () => {
+      await fetch('/api/profile', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:user.id, avatar:reader.result})});
+      loadProfile();
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+
+function shareProfile() {
+  const link = \( {location.origin}/?ref= \){user.username};
+  navigator.clipboard.writeText(link);
+  alert(Реферальная ссылка скопирована!\n${link}\nНовый юзер получит +50 WXR тебе на баланс);
+}
+
+// ==================== ПРЕМИУМ ====================
+async function buyPremium(level) {
+  const cost = level===1 ? 299 : 499;
+  if (user.balance < cost) return alert('Недостаточно VXR!');
+  if (confirm(Купить ${level===1?'синюю':'жёлтую'} галочку за ${cost} WXR?)) {
+    const r = await fetch('/api/buy-premium', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:user.id, level})});
+    const d = await r.json();
+    if (d.success) {
+      user.premiumLevel = d.premiumLevel;
+      loadProfile();
+      loadPosts(); // обновить посты с галочкой
+    }
+  }
+}
+
+// ==================== КУПИТЬ VXR ====================
+function updateSlider() {
+  const val = document.getElementById('vxr-slider').value;
+  document.getElementById('slider-val').textContent = val;
+  document.getElementById('price-val').textContent = val;
+}
+
+async function buyVXRPackage() {
+  const amount = parseInt(document.getElementById('wxr-slider').value);
+  if (confirm(Купить ${amount} VXR за ${amount} ₽? (симуляция))) {
+    const r = await fetch('/api/buy-vxr', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:user.id, amount})});
+    const d = await r.json();
+    if (d.success) {
+      user.balance = d.balance;
+      loadProfile();
+      alert(+${amount} VXR на баланс!);
+    }
+  }
+}
+
+const packs = [
+  {v:100, p:100}, {v:500, p:450}, {v:1000, p:850},
+  {v:2000, p:1600}, {v:5000, p:4000}, {v:10000, p:7500}
+];
+document.getElementById('buy-packages').innerHTML = packs.map(p => 
+  <button class="buy-btn" onclick="quickBuy(${p.v})">Купить ${p.v} VXR — ${p.p} ₽</button>
+).join('');
+
+async function quickBuy(amount) {
+  if (confirm(Купить ${amount} VXR за ${amount} ₽?)) {
+    const r = await fetch('/api/buy-wxr', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:user.id, amount})});
+    const d = await r.json();
+    if (d.success) { user.balance = d.balance; loadProfile(); alert(+${amount} VXR!); }
+  }
+}
+
+// ==================== ЧАТЫ ====================
+let currentChatWith = null;
+
+async function loadMyChats() {
+  const r = await fetch(/api/my-chats?userId=${user.id});
+  const chats = await r.json();
+  document.getElementById('my-chats-list').innerHTML = chats.map(c => 
+    <div onclick="openChat(${c.otherId})" style="padding:10px;background:#1e1e1e;margin:5px 0;border-radius:6px;cursor:pointer;display:flex;gap:10px">
+      <img src="${c.otherAvatar}" class="avatar" style="width:40px;height:40px">
+      <div>
+        <b>${c.otherName}</b><br>
+        <small>@${c.otherUsername} • ${c.lastMsg}</small>
+      </div>
+    </div>
+  ).join('');
+}
+
+async function searchUsersForChat(e) {
+  if (e.key !== 'Enter') return;
+  const q = document.getElementById('new-chat-search').value.trim().toLowerCase();
+  if (!q) return;
+  const all = await (await fetch('/api/admin/users')).json();
+  const res = all.filter(u => u.username.includes(q) && u.id !== user.id);
+  document.getElementById('new-chat-results').innerHTML = res.map(u => 
+    <div onclick="openChat(${u.id});document.getElementById('new-chat-results').innerHTML=''" style="padding:8px;cursor:pointer">
+      \( {u.name} @ \){u.username}
+    </div>
+  ).join('');
+}
+
+async function openChat(withId) {
+  currentChatWith = withId;
+  document.getElementById('open-chat').style.display = 'block';
+  const other = await (await fetch(/api/user/${withId})).json();
+  document.getElementById('chat-header').innerHTML = 
+    <img src="${other.avatar}" class="avatar" style="width:40px;height:40px">
+    <b>${other.name}</b>
+  ;
+  loadChatMessages();
+}
+
+async function loadChatMessages() {
+  const r = await fetch(/api/messages?fromId=\( {user.id}&toId= \){currentChatWith});
+  const msgs = await r.json();
+  document.getElementById('chat-messages').innerHTML = msgs.map(m => 
+    <div style="margin:5px 0;text-align:${m.fromId===user.id?'right':'left'}">
+      <span style="background:${m.fromId===user.id?'#0284c7':'#333'};padding:8px 12px;border-radius:18px;display:inline-block">
+        ${m.content}
+      </span>
+    </div>
+  ).join('');
+  document.getElementById('chat-messages').scrollTop = 999999;
+}
+
+async function sendCurrentMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text || !currentChatWith) return;
+  await fetch('/api/send-message', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({fromId:user.id, toId:currentChatWith, content:text})});
+  input.value = '';
+  loadChatMessages();
+  loadMyChats();
+}
+
+// ==================== ЗАПУСК ====================
+</script>
+</body>
+</html>
