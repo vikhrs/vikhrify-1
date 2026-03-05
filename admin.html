@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head><title>Admin Vikhrify</title><style>body{background:#0d1117;color:#fff;padding:20px;font-family:sans-serif;} .card{background:#161b22;padding:15px;margin-bottom:10px;border-radius:10px;}</style></head>
+<body>
+    <h1>Админ-панель (Пароль: sehpy9-qiqjux-hofgyN)</h1>
+    <div id="u-l"></div>
+    <script>
+        const pass = prompt("Пароль:");
+        async function load() {
+            const r = await fetch('/api/admin/users', { headers: {'x-admin-pass': pass} });
+            if(r.status===403) return alert("Нет доступа");
+            const users = await r.json();
+            document.getElementById('u-l').innerHTML = users.map(u => `
+                <div class="card">
+                    <b>${u.name}</b> (@${u.username}) | Баланс: <input id="b-${u.id}" value="${u.balance}"> 
+                    Галка: <select id="v-${u.id}"><option value="false">Нет</option><option value="blue">Синяя</option><option value="yellow">Золотая</option></select>
+                    <button onclick="save(${u.id})">OK</button>
+                </div>`).join('');
+        }
+        async function save(id) {
+            const balance = document.getElementById('b-'+id).value;
+            const isVerified = document.getElementById('v-'+id).value;
+            await fetch('/api/admin/edit-user', {
+                method:'POST', headers:{'Content-Type':'application/json','x-admin-pass':pass},
+                body: JSON.stringify({id, balance:Number(balance), isVerified})
+            });
+            alert("Сохранено");
+        }
+        load();
+    </script>
+</body>
+</html>
