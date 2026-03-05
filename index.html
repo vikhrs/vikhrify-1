@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Vikhrify</title>
+    <style>
+        :root { --bg: #000; --text: #fff; }
+        [data-theme="light"] { --bg: #fff; --text: #000; }
+        body { background: var(--bg); color: var(--text); font-family: sans-serif; }
+        button { background: #007bff; color: white; padding: 15px; width: 100%; border-radius: 10px; border: none; font-size: 17px; margin: 5px 0; }
+        input { width: 100%; padding: 15px; box-sizing: border-box; background: #222; color: #fff; border: none; margin: 5px 0; }
+        .view { padding: 20px; } .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div id="auth-box">
+        <h1>Добро пожаловать в Vikhrify!</h1>
+        <input type="text" id="a-name" placeholder="Имя">
+        <input type="text" id="a-user" placeholder="Юзернейм (англ)" oninput="this.value = this.value.replace(/[^a-zA-Z0-9_]/g, '')">
+        <input type="password" id="a-pass" placeholder="Пароль">
+        <button onclick="auth('reg')">Зарегистрироваться</button>
+        <button onclick="auth('login')" style="background:#333">Войти</button>
+    </div>
+
+    <div id="app" class="hidden">
+        <button onclick="document.body.dataset.theme = document.body.dataset.theme == 'light' ? 'dark' : 'light'">Сменить тему</button>
+        <div id="v-feed" class="view">
+            <textarea id="p-txt"></textarea><input type="file" id="p-file">
+            <button onclick="post()">Опубликовать</button>
+            <div id="feed-list"></div>
+        </div>
+        <nav style="position:fixed; bottom:0; width:100%; display:flex;">
+            <button onclick="show('feed')">Лента</button>
+            <button onclick="show('profile')">Профиль</button>
+        </nav>
+    </div>
+
+<script>
+    let me = JSON.parse(localStorage.getItem('curr'));
+    async function auth(t) {
+        const res = await fetch('/api/auth', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({username:document.getElementById('a-user').value, password:document.getElementById('a-pass').value, name:document.getElementById('a-name').value, type:t})
+        });
+        if(res.ok) { me = await res.json(); localStorage.setItem('curr', JSON.stringify(me)); location.reload(); }
+    }
+    function show(v) { document.querySelectorAll('.view').forEach(e => e.classList.add('hidden')); document.getElementById('v-'+v).classList.remove('hidden'); }
+    async function post() {
+        const file = document.getElementById('p-file').files[0];
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            await fetch('/api/posts', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:me.name, text:document.getElementById('p-txt').value, media:e.target.result}) });
+            alert('Пост опубликован!');
+        };
+        reader.readAsDataURL(file);
+    }
+    if(me) { document.getElementById('auth-box').classList.add('hidden'); document.getElementById('app').classList.remove('hidden'); }
+</script>
+</body>
+</html>
