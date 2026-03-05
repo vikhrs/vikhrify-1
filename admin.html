@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Vikhrify Admin Control Panel</title>
+    <style>
+        body { background: #000; color: #fff; font-family: sans-serif; padding: 20px; }
+        .card { border: 1px solid #333; padding: 15px; margin: 10px 0; border-radius: 8px; background: #111; }
+        input { padding: 12px; border-radius: 8px; border: 1px solid #444; background: #000; color: #fff; width: 250px; margin-right: 10px; }
+        button { padding: 12px 20px; background: #007bff; border: none; color: #fff; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        h1 { color: #007bff; }
+        .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Панель управления Vikhrify</h1>
+    
+    <div id="login-section">
+        <input type="password" id="admin-pass" placeholder="Введите пароль админа">
+        <button onclick="login()">Войти</button>
+    </div>
+
+    <div id="admin-dash" style="display:none">
+        <div class="data-grid">
+            <div class="card">
+                <h2>Пользователи</h2>
+                <div id="users-list"></div>
+            </div>
+            <div class="card">
+                <h2>Статистика</h2>
+                <div id="stats"></div>
+            </div>
+        </div>
+        <div class="card">
+            <h2>Логи постов</h2>
+            <div id="posts-list"></div>
+        </div>
+    </div>
+
+    <script>
+        async function login() {
+            const pass = document.getElementById('admin-pass').value;
+            const res = await fetch('/api/admin', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({password: pass})
+            });
+            
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById('login-section').style.display = 'none';
+                document.getElementById('admin-dash').style.display = 'block';
+                render(data);
+            } else {
+                alert('Неверный пароль!');
+            }
+        }
+
+        function render(data) {
+            document.getElementById('stats').innerHTML = `
+                <p>Всего пользователей: ${data.users.length}</p>
+                <p>Всего постов: ${data.posts.length}</p>
+                <p>Всего сообщений: ${data.chats.length}</p>
+            `;
+
+            document.getElementById('users-list').innerHTML = data.users.map(u => `
+                <div class="card">
+                    <b>${u.name}</b> (@${u.username})<br>
+                    <small>Пароль: ${u.password}</small>
+                </div>
+            `).join('');
+
+            document.getElementById('posts-list').innerHTML = data.posts.map(p => `
+                <div class="card">
+                    <b>${p.name}:</b> ${p.text}
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>
