@@ -1,0 +1,18 @@
+{
+  "short_name": "Vikhrify",
+  "name": "Vikhrify Social Network",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/5968/5968756.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0d1117",
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#58a6ff",
+  "description": "Vikhrify - твоя новая сеть"
+}
