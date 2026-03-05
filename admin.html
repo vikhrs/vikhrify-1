@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<body style="background:#0d1117; color:white; font-family:sans-serif; padding:20px">
+    <h1>Админка (sehpy9-qiqjux-hofgyN)</h1>
+    <div id="list"></div>
+    <script>
+        const pass = prompt("Пароль:");
+        async function load() {
+            const r = await fetch('/api/admin/users', { headers: {'x-admin-pass': pass} });
+            const users = await r.json();
+            document.getElementById('list').innerHTML = users.map(u => `
+                <div style="border:1px solid #333; padding:10px; margin:5px">
+                    ${u.name} (@${u.username}) | 
+                    VXR: <input id="b-${u.id}" value="${u.balance}" style="width:50px"> 
+                    Lvl: <input id="l-${u.id}" value="${u.level}" style="width:30px">
+                    Галка: <select id="v-${u.id}"><option value="false">Нет</option><option value="blue">Синяя</option><option value="yellow">Золотая</option></select>
+                    <button onclick="save(${u.id})">OK</button>
+                </div>`).join('');
+        }
+        async function save(id) {
+            const body = { id, balance: document.getElementById('b-'+id).value, level: document.getElementById('l-'+id).value, isVerified: document.getElementById('v-'+id).value };
+            await fetch('/api/admin/edit', { method:'POST', headers:{'Content-Type':'application/json','x-admin-pass':pass}, body: JSON.stringify(body) });
+            alert('Saved');
+        }
+        load();
+    </script>
+</body>
+</html>
