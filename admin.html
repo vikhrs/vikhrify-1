@@ -5,18 +5,33 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Админ Vikhrify</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    th { background: #eee; }
-    input { width: 80px; }
-    button { margin: 2px; }
+    body { font-family: Arial, sans-serif; background: #0d1117; color: #c9d1d9; padding: 20px; }
+    h1 { color: #58a6ff; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #161b22; }
+    th, td { border: 1px solid #30363d; padding: 10px; text-align: left; }
+    th { background: #21262d; }
+    input, select { background: #0d1117; color: #c9d1d9; border: 1px solid #30363d; padding: 6px; border-radius: 6px; }
+    button { background: #238636; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; margin: 4px 2px; }
+    button:hover { background: #2ea043; }
+    .error { color: #f85149; font-weight: bold; }
+    #status { margin: 12px 0; min-height: 24px; }
   </style>
 </head>
 <body>
+
   <h1>Админ-панель Vikhrify</h1>
-  <p>Пароль для доступа: <input id="admin-pass" type="password" placeholder="Введите пароль"></p>
-  <p>Пользователей: <span id="users-count">0</span> | Постов: <span id="posts-count">0</span> | Сообщений: <span id="msgs-count">0</span></p>
+
+  <label>Пароль админа:</label>
+  <input id="admin-pass" type="password" placeholder="Введи пароль">
+  <button onclick="loadData()">Загрузить / Обновить</button>
+
+  <div id="status"></div>
+
+  <p>Статистика: 
+    Пользователей: <span id="users-count">—</span> | 
+    Постов: <span id="posts-count">—</span> | 
+    Сообщений: <span id="msgs-count">—</span>
+  </p>
 
   <table id="users-table">
     <thead>
@@ -30,71 +45,153 @@
         <th>Действия</th>
       </tr>
     </thead>
-    <tbody></tbody>
+    <tbody id="users-body"></tbody>
   </table>
 
   <script>
-    const ADMIN_PASS = 'sehpy9-qiqjux-hofgyN'; // Тот же, что в server.js
-    const tableBody = document.querySelector('#users-table tbody');
+    const ADMIN_PASS_HEADER = 'x-admin-pass';
+    const ADMIN_PASS_VALUE = 'sehpy9-qiqjux-hofgyN'; // должен совпадать с server.js
 
-    async function loadAdmin() {
-      const pass = document.getElementById('admin-pass').value;
-      if (!pass) return alert('Введите пароль');
+    const statusEl = document.getElementById('status');
+    const usersBody = document.getElementById('users-body');
 
-      const headers = { 'x-admin-pass': pass };
+    async function loadData() {
+      const pass = document.getElementById('admin-pass').value.trim();
+      if (!pass) {
+        statusEl.innerHTML = '<span class="error">Введи пароль!</span>';
+        return;
+      }
 
-      const statsRes = await fetch('/api/admin/stats', { headers });
-      if (!statsRes.ok) return alert('Неверный пароль');
-      const stats = await statsRes.json();
-      document.getElementById('users-count').textContent = stats.usersCount;
-      document.getElementById('posts-count').textContent = stats.postsCount;
-      document.getElementById('msgs-count').textContent = stats.msgsCount;
+      statusEl.innerHTML = 'Загрузка...';
+      usersBody.innerHTML = '';
 
-      const usersRes = await fetch('/api/admin/users', { headers });
-      const users = await usersRes.json();
+      try {
+        const headers = { [ADMIN_PASS_HEADER]: pass };
 
-      tableBody.innerHTML = users.map(u => 
-        <tr>
-          <td>${u.id}</td>
-          <td>@${u.username}</td>
-          <td>${u.name}</td>
-          <td><input type="number" value="\( {u.balance}" id="bal- \){u.id}"></td>
-          <td>
-            <select id="prem-${u.id}">
-              <option value="none" ${u.premium === 'none' ? 'selected' : ''}>Нет</option>
-              <option value="blue" ${u.premium === 'blue' ? 'selected' : ''}>Синяя (299)</option>
-              <option value="yellow" ${u.premium === 'yellow' ? 'selected' : ''}>Жёлтая (499)</option>
-              <option value="red" ${u.premium === 'red' ? 'selected' : ''}>Красная (админ)</option>
-            </select>
-          </td>
-          <td>${u.isBlocked ? 'Заблокирован' : 'Активен'}</td>
-          <td>
-            <button onclick="updateUser(${u.id}, 'balance')">Сохранить баланс</button>
-            <button onclick="updateUser(${u.id}, 'premium')">Сохранить премиум</button>
-            <button onclick="toggleBlock(\( {u.id})"> \){u.isBlocked ? 'Разблокировать' : 'Заблокировать'}</button>
-          </td>
-        </tr>
-      ).join('');
+        // Статистика
+        const statsRes = await fetch('/api/admin/stats', { headers });
+        if (!statsRes.ok) throw new Error(Ошибка ${statsRes.status}: ${await statsRes.text()});
+        const stats = await statsRes.json();
+
+        document.getElementById('users-count').textContent = stats.usersCount;
+        document.getElementById('posts-count').textContent = stats.postsCount;
+        document.getElementById('msgs-count').textContent = stats.msgsCount;
+
+        // Пользователи
+        const usersRes = await fetch('/api/admin/users', { headers });
+        if (!usersRes.ok) throw new Error(Ошибка ${usersRes.status}: ${await usersRes.text()});
+        const users = await usersRes.json();
+
+        usersBody.innerHTML = users.map(user => `
+          <tr data-user-id="${user.id}">
+            <td>${user.id}</td>
+            <td>@${user.username}</td>
+            <td>${user.name || '—'}</td>
+            <td>
+              <input type="number" value="${user.balance || 0}" class="bal-input">
+            </td>
+            <td>
+              <select class="prem-select">
+                <option value="none" ${user.premium === 'none' ? 'selected' : ''}>Нет</option>
+                <option value="blue" ${user.premium === 'blue' ? 'selected' : ''}>Синяя</option>
+                <option value="yellow" ${user.premium === 'yellow' ? 'selected' : ''}>Жёлтая</option>
+                <option value="red" ${user.premium === 'red' ? 'selected' : ''}>Красная (админ)</option>
+              </select>
+            </td>
+            <td>${user.isBlocked ? '<span style="color:#f85149">Заблокирован</span>' : 'Активен'}</td>
+            <td>
+              <button onclick="saveBalance(${user.id})">Сохр. баланс</button>
+              <button onclick="savePremium(${user.id})">Сохр. премиум</button>
+              <button onclick="toggleBlock(${user.id})">
+                ${user.isBlocked ? 'Разблокировать' : 'Заблокировать'}
+              </button>
+            </td>
+          </tr>
+        ).join('');
+
+        statusEl.innerHTML = 'Данные загружены ✓';
+      } catch (err) {
+        console.error(err);
+        statusEl.innerHTML = <span class="error">Ошибка: ${err.message}</span>;
+      }
     }
 
-    async function updateUser(id, field) {
-      const pass = document.getElementById('admin-pass').value;
-      const headers = { 'Content-Type': 'application/json', 'x-admin-pass': pass };
-      let body = { id };
-      if (field === 'balance') body.balance = Number(document.getElementById(bal-${id}).value);
-      if (field === 'premium') body.premium = document.getElementById(prem-${id}).value;
-      await fetch('/api/admin/user', { method: 'PATCH', headers, body: JSON.stringify(body) });
-      alert('Обновлено');
+    async function saveBalance(id) {
+      const pass = document.getElementById('admin-pass').value.trim();
+      const row = document.querySelector(tr[data-user-id="${id}"]);
+      const balance = row.querySelector('.bal-input').value;
+
+      try {
+        const res = await fetch('/api/admin/user', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            [ADMIN_PASS_HEADER]: pass
+          },
+          body: JSON.stringify({ id: Number(id), balance: Number(balance) })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        alert('Баланс обновлён');
+      } catch (err) {
+        alert('Ошибка: ' + err.message);
+      }
+    }
+
+    async function savePremium(id) {
+      const pass = document.getElementById('admin-pass').value.trim();
+      const row = document.querySelector(tr[data-user-id="${id}"]);
+      const premium = row.querySelector('.prem-select').value;
+
+      try {
+        const res = await fetch('/api/admin/user', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            [ADMIN_PASS_HEADER]: pass
+          },
+          body: JSON.stringify({ id: Number(id), premium })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        alert('Премиум обновлён');
+      } catch (err) {
+        alert('Ошибка: ' + err.message);
+      }
     }
 
     async function toggleBlock(id) {
-      const pass = document.getElementById('admin-pass').value;
-      const headers = { 'Content-Type': 'application/json', 'x-admin-pass': pass };
-      const user = (await fetch('/api/admin/users', { headers: { 'x-admin-pass': pass } })).json().then(us => us.find(u => u.id === id));
-      await fetch('/api/admin/user', { method: 'PATCH', headers, body: JSON.stringify({ id, isBlocked: !user.isBlocked }) });
-      loadAdmin();
+      const pass = document.getElementById('admin-pass').value.trim();
+
+      try {
+        // Сначала получаем текущее состояние (чтобы инвертировать)
+        const usersRes = await fetch('/api/admin/users', { headers: { [ADMIN_PASS_HEADER]: pass } });
+        if (!usersRes.ok) throw new Error('Не удалось получить пользователей');
+        const users = await usersRes.json();
+        const user = users.find(u => u.id === id);
+        if (!user) throw new Error('Пользователь не найден');
+
+        const newBlocked = !user.isBlocked;
+
+        const res = await fetch('/api/admin/user', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            [ADMIN_PASS_HEADER]: pass
+          },
+          body: JSON.stringify({ id: Number(id), isBlocked: newBlocked })
+        });
+        if (!res.ok) throw new Error(await res.text());
+
+        alert(Пользователь ${newBlocked ? 'заблокирован' : 'разблокирован'}`);
+        loadData(); // обновляем таблицу
+      } catch (err) {
+        alert('Ошибка: ' + err.message);
+      }
     }
-    document.getElementById('admin-pass').addEventListener('change', loadAdmin);
+
+    // Автозагрузка при вводе пароля (Enter)
+    document.getElementById('admin-pass').addEventListener('keypress', e => {
+      if (e.key === 'Enter') loadData();
+    });
   </script>
 </body>
 </html>
