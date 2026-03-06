@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head><title>Admin Panel - Vikhrify</title></head>
+<body>
+    <h1>Vikhrify Admin</h1>
+    <input type="password" id="p" placeholder="Пароль админа">
+    <button onclick="check()">Войти</button>
+    <script>
+        function check() {
+            if(document.getElementById('p').value === "sehpy9-qiqjux-hofgyN") {
+                document.body.innerHTML = "<h1>Vikhrify Admin Panel</h1><p>Доступ разрешен. Система активна.</p>";
+            } else { alert("Ошибка: Неверный пароль!"); }
+        }
+    </script>
+</body>
+</html>
