@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vikhrify Admin</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:20px; background:#f8f9fa; }
+    .card { background:white; padding:16px; border-radius:8px; margin:16px 0; box-shadow:0 1px 4px rgba(0,0,0,0.1); }
+    input, button { padding:8px; margin:6px; }
+    button.primary { background:#dc3545; color:white; border:none; border-radius:6px; cursor:pointer; }
+  </style>
+</head>
+<body>
+
+<h1>Админ-панель Vikhrify</h1>
+
+<div class="card">
+  <h3>Статистика</h3>
+  <button onclick="loadStats()">Обновить</button>
+  <div id="stats"></div>
+</div>
+
+<div class="card">
+  <h3>Поиск пользователя</h3>
+  <input id="admin-search" placeholder="Юзернейм..." />
+  <button class="primary" onclick="adminSearch()">Найти</button>
+  <div id="admin-users"></div>
+</div>
+
+<script>
+const token = localStorage.getItem('vikhrify_token'); // должен быть админ-токен
+
+async function loadStats() {
+  const res = await fetch('/admin/stats', { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) return alert('Доступ запрещён (не админ?)');
+  const data = await res.json();
+  document.getElementById('stats').innerHTML = `Пользователей: ${data.users}<br>Постов: ${data.posts}`;
+}
+
+async function adminSearch() {
+  const q = document.getElementById('admin-search').value.trim();
+  if (!q) return;
+  const res = await fetch(`/admin/users/search/${encodeURIComponent(q)}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) return alert('Ошибка или нет доступа');
+  const users = await res.json();
+  const div = document.getElementById('admin-users');
+  div.innerHTML = users.map(u => `
+    <div style="margin:12px 0; border-bottom:1px solid #eee; padding-bottom:12px;">
+      <strong>@${u.username}</strong> · Подписчиков: ${u.follower_count} · ${u.verified ? 'Верифицирован' : ''} ${u.blocked ? '(заблокирован)' : ''}
+      <br>
+      <button onclick="verify(${u.id}, true)">Дать красную галочку</button>
+      <button onclick="verify(${u.id}, false)">Убрать галочку</button>
+      <button onclick="block(${u.id}, true)">Заблокировать</button>
+      <button onclick="block(${u.id}, false)">Разблокировать</button>
+      <button onclick="addFollowers(${u.id})">Накрутить подписчиков</button>
+      <button onclick="viewConversation(${u.id})">Посмотреть переписку</button>
+    </div>
+  `).join('');
+}
+
+async function verify(id, val) {
+  await fetch(`/admin/verify/${id}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ verified: val })
+  });
+  alert('Готово');
+}
+
+async function block(id, val) {
+  await fetch(`/admin/block/${id}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ blocked: val })
+  });
+  alert('Готово');
+}
+
+async function addFollowers(id) {
+  const cnt = prompt('Сколько подписчиков накрутить?');
+  if (!cnt || isNaN(cnt)) return;
+  await fetch(`/admin/add-followers/${id}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ count: Number(cnt) })
+  });
+  alert('Подписчики добавлены');
+}
+
+async function viewConversation(id) {
+  const res = await fetch(`/admin/conversation/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+  const msgs = await res.json();
+  alert('Последние сообщения:\n\n' + msgs.map(m => `${m.from_user} → ${m.to_user}: ${m.text}`).join('\n'));
+}
+</script>
+</body>
+</html>
