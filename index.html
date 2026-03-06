@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Vikhrify</title>
+    <style>
+        .view { display: none; padding: 20px; }
+        .active { display: block; }
+        .nav { position: fixed; bottom: 0; width: 100%; display: flex; justify-content: space-around; background: #eee; padding: 15px; border-top: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <h1>Welcome to Vikhrify!</h1>
+        <div id="feed" class="view active"><h2>Лента</h2><div id="posts"></div></div>
+        <div id="chats" class="view"><h2>Чаты</h2><div id="chat-box" style="height: 300px; overflow-y: scroll;"></div>
+            <input id="m" placeholder="Введите сообщение..."><button onclick="send()">Отпр</button>
+        </div>
+        <div id="profile" class="view"><h2>Профиль</h2><p>Эдвард</p></div>
+    </div>
+
+    <nav class="nav">
+        <button onclick="show('feed')">Лента</button>
+        <button onclick="show('chats')">Чаты</button>
+        <button onclick="show('profile')">Профиль</button>
+    </nav>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="client.js"></script>
+</body>
+</html>
