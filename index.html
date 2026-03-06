@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vikhrify</title>
+    <style>
+        body { background:#000; color:#fff; font-family:sans-serif; margin:0; }
+        .view { display:none; padding:20px; } .view.active { display:block; }
+        .nav { position:fixed; bottom:0; width:100%; display:flex; background:#111; padding:15px; }
+        .input { width:100%; padding:15px; margin:10px 0; border-radius:10px; background:#222; color:#fff; border:none; }
+        .btn { width:100%; padding:15px; background:#007bff; border:none; color:white; border-radius:10px; margin:5px 0; }
+    </style>
+</head>
+<body>
+    <div id="auth">
+        <h1 style="text-align:center">Vikhrify</h1>
+        <input id="u" class="input" placeholder="Юзернейм">
+        <input id="p" class="input" type="password" placeholder="Пароль">
+        <button class="btn" onclick="auth('reg')">Регистрация</button>
+        <button class="btn" onclick="auth('login')">Вход</button>
+    </div>
+    <div id="app" style="display:none">
+        <div id="v-feed" class="view active"><h2>Лента</h2><div id="feed-list"></div></div>
+        <div id="v-chats" class="view"><h2>Чаты</h2><div id="chat-list"></div></div>
+        <div id="v-profile" class="view"><h2>Профиль</h2><div id="profile-info"></div></div>
+        <nav class="nav">
+            <button onclick="show('feed')">Лента</button>
+            <button onclick="show('chats')">Чаты</button>
+            <button onclick="show('profile')">Профиль</button>
+        </nav>
+    </div>
+    <script>
+        function show(v) { document.querySelectorAll('.view').forEach(e=>e.classList.remove('active')); document.getElementById('v-'+v).classList.add('active'); }
+        async function auth(t) { /* логика с fetch */ }
+        setInterval(async () => { 
+            const data = await fetch('/api/data').then(r=>r.json());
+            // Обновляем ленту и чаты каждые 3 секунды
+        }, 3000);
+    </script>
+</body>
+</html>
