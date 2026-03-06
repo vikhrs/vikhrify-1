@@ -81,8 +81,8 @@ db.serialize(() => {
 
 // Замени на свои VAPID ключи (сгенерируй через web-push generate-vapid-keys)
 const vapidKeys = {
-  publicKey: 'BJthRQ5myDgc7OSXzPCMftGw-n16F7zQBEN7EUD6XxcfTTvrLGWSIG7y_JxiWtVlCFua0S8MTB5rPziBqNx1qIo',
-  privateKey: 'R-Htlxxt_PbL3c-0NSf5d2N2w3rz7J3r8w8b9w8f8f8'
+  publicKey: 'BI3jIOqOR5KqNiagyLemVsLTDSqDx1U7SHzF2wV-BNxQ6phiZvGSzsl9-Y1rY4dGN6VqiRHKTpmk90y7xdLmUrw',
+  privateKey: '6bwOWQfcDBux3Uu-4gSVZgraPRUqR5VA6FtvU9-76JM'
 };
 webPush.setVapidDetails('mailto:admin@vikhrify.local', vapidKeys.publicKey, vapidKeys.privateKey);
 
